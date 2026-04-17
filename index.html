@@ -22,55 +22,112 @@
     <!-- ═══════════ SWIPEABLE VIEW CONTAINER ═══════════ -->
     <div class="view-container" id="view-container">
 
-      <!-- ── VIEW 1: CALENDAR ── -->
-      <div class="view" id="view-calendar" data-view="calendar">
+      <!-- ── VIEW 1: TASKS (Combined List & Reminders) ── -->
+      <div class="view active" id="view-tasks" data-view="tasks">
         <div class="app-container">
           <header class="top-nav">
-            <h1 class="logo">Tenor</h1>
-            <button id="add-task-btn" class="btn-primary">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align: middle; margin-right: 4px;">
-                <line x1="8" y1="3" x2="8" y2="13"></line>
-                <line x1="3" y1="8" x2="13" y2="8"></line>
-              </svg>
-              Add Task
-            </button>
+            <h1 class="logo">Tasks</h1>
+            <div class="tasks-sub-tabs">
+              <button class="sub-tab active" data-sub="all">Tasks</button>
+              <button class="sub-tab" data-sub="reminders">Reminders</button>
+            </div>
           </header>
 
-          <main class="content-split">
-            <section class="calendar-view card">
-              <div class="calendar-header">
-                <h2 id="current-month">Month Year</h2>
-                <div class="month-controls">
-                  <button id="prev-month" aria-label="Previous month">
-                    <svg viewBox="0 0 16 16"><polyline points="10 4 6 8 10 12"></polyline></svg>
-                  </button>
-                  <button id="next-month" aria-label="Next month">
-                    <svg viewBox="0 0 16 16"><polyline points="6 4 10 8 6 12"></polyline></svg>
-                  </button>
-                </div>
+          <main class="tasks-content">
+            <!-- All Tasks View -->
+            <div id="sub-view-all" class="sub-view">
+              <div class="quick-add-bar">
+                <input type="text" id="quick-add-input" placeholder="Quick add task..." autocomplete="off">
+                <button id="quick-add-submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
               </div>
-              <div class="calendar-grid" id="calendar-grid">
-                <div class="day-header">Sun</div>
-                <div class="day-header">Mon</div>
-                <div class="day-header">Tue</div>
-                <div class="day-header">Wed</div>
-                <div class="day-header">Thu</div>
-                <div class="day-header">Fri</div>
-                <div class="day-header">Sat</div>
+              <div id="duelist-list" class="task-list full-tasks">
+                <!-- Sorted tasks injected by JS -->
               </div>
-            </section>
+            </div>
 
-            <section class="duelist-view card">
-              <h2>Upcoming</h2>
-              <div id="duelist-list" class="task-list">
-                <!-- Tasks injected by JS -->
+            <!-- Daily Reminders View -->
+            <div id="sub-view-reminders" class="sub-view hidden">
+              <div class="reminders-controls">
+                <p class="section-label">Daily Habits</p>
+                <button id="add-reminder-btn" class="btn-primary-mini">Add Habit</button>
               </div>
-            </section>
+              <div id="reminders-list" class="task-list reminders-grid">
+                <!-- Habits injected by JS -->
+              </div>
+            </div>
           </main>
         </div>
       </div>
 
-      <!-- ── VIEW 2: ZONE (Focus Timer) ── -->
+      <!-- ── VIEW 2: CALENDAR ── -->
+      <div class="view" id="view-calendar" data-view="calendar">
+        <div class="app-container">
+          <header class="top-nav">
+            <h1 class="logo">Calendar</h1>
+          </header>
+
+          <main class="calendar-full">
+            <div class="calendar-hero-header">
+              <button id="prev-month" class="nav-btn hero-nav">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              </button>
+              <h2 id="current-month" class="hero-month-title">April 2026</h2>
+              <button id="next-month" class="nav-btn hero-nav">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            </div>
+            
+            <div class="calendar-card">
+              <div class="calendar-days-header">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+              </div>
+              <div id="calendar-grid" class="calendar-grid-full">
+                <!-- Grid injected by JS -->
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <!-- ── VIEW 3: COUNTDOWN ── -->
+      <div class="view" id="view-countdown" data-view="countdown">
+        <div class="app-container">
+          <header class="top-nav">
+            <h1 class="logo">Countdowns</h1>
+
+          </header>
+
+          <main class="countdown-content" id="cd-gallery-view">
+            <div id="countdown-list" class="countdown-grid">
+              <!-- Cards injected by JS -->
+            </div>
+          </main>
+
+          <main class="countdown-content hidden" id="cd-detail-view">
+             <button id="cd-back-btn" class="btn-secondary-mini" style="margin-bottom: 2rem;">
+               &lsaquo; Back
+             </button>
+             <div class="countdown-full-display">
+               <h2 id="cd-detail-title" class="zone-title" style="font-size: 2.5rem;">Event</h2>
+               <div class="cd-detail-target" id="cd-detail-target" style="color: var(--text-tertiary); margin-bottom: 3rem;">Oct 31, 2026</div>
+               <div class="cd-timer-blocks" style="display:flex; gap:1.5rem; justify-content:center;">
+                 <div class="cd-block" style="text-align:center;"><div class="cd-num" id="cd-days" style="font-size: 4rem; font-weight:300;">00</div><div class="cd-label" style="text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; color:var(--text-tertiary);">Days</div></div>
+                 <div class="cd-block" style="text-align:center;"><div class="cd-num" id="cd-hours" style="font-size: 4rem; font-weight:300;">00</div><div class="cd-label" style="text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; color:var(--text-tertiary);">Hours</div></div>
+                 <div class="cd-block" style="text-align:center;"><div class="cd-num" id="cd-mins" style="font-size: 4rem; font-weight:300;">00</div><div class="cd-label" style="text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; color:var(--text-tertiary);">Mins</div></div>
+                 <div class="cd-block" style="text-align:center;"><div class="cd-num" id="cd-secs" style="font-size: 4rem; font-weight:300; color:var(--accent-light);">00</div><div class="cd-label" style="text-transform:uppercase; font-size:0.8rem; letter-spacing:1px; color:var(--text-tertiary);">Secs</div></div>
+               </div>
+             </div>
+          </main>
+        </div>
+      </div>
+
+      <!-- ── VIEW 4: ZONE (Focus Timer) ── -->
       <div class="view" id="view-zone" data-view="zone">
         <div class="zone-container zone-mode-setup" id="zone-container">
           
@@ -149,11 +206,16 @@
 
     </div>
 
-    <!-- ═══════════ BOTTOM TAB BAR ═══════════ -->
-    <!-- ═══════════ BOTTOM TAB BAR (FLOATING PILL) ═══════════ -->
     <div class="tab-bar-container">
       <nav class="tab-bar" id="tab-bar">
-        <button class="tab-item active" data-view="calendar" id="tab-calendar">
+        <button class="tab-item active" data-view="tasks" id="tab-tasks">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+          <span class="tab-label">Tasks</span>
+        </button>
+        <button class="tab-item" data-view="calendar" id="tab-calendar">
           <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"></rect>
             <line x1="3" y1="10" x2="21" y2="10"></line>
@@ -161,6 +223,13 @@
             <line x1="8" y1="2" x2="8" y2="6"></line>
           </svg>
           <span class="tab-label">Calendar</span>
+        </button>
+        <button class="tab-item" data-view="countdown" id="tab-countdown">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="17 2 7 2 7 9 12 14 17 9 17 2"></polygon>
+            <polygon points="17 22 7 22 7 15 12 10 17 15 17 22"></polygon>
+          </svg>
+          <span class="tab-label">Countdown</span>
         </button>
         <button class="tab-item" data-view="zone" id="tab-zone">
           <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -170,6 +239,16 @@
           <span class="tab-label">Zone</span>
         </button>
       </nav>
+    </div>
+
+    <!-- Floating Action Buttons -->
+    <div class="fab-container">
+      <button id="add-task-btn" class="fab-btn hidden">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button id="add-countdown-btn" class="fab-btn hidden">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
     </div>
 
   </div>
@@ -189,23 +268,39 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label for="task-type">Type</label>
-            <select id="task-type" required>
-              <option value="Homework">Homework</option>
-              <option value="Test">Test</option>
-              <option value="Event">Event</option>
-            </select>
+            <label>Type</label>
+            <div class="custom-select" id="custom-select-type">
+              <div class="select-trigger"><span>Homework</span> <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="select-options hidden">
+                <div data-value="Homework" class="option selected">Homework</div>
+                <div data-value="Test" class="option">Test</div>
+                <div data-value="Event" class="option">Event</div>
+              </div>
+              <input type="hidden" id="task-type" value="Homework">
+            </div>
           </div>
 
           <div class="form-group">
-            <label for="task-date">Due Date</label>
-            <input type="datetime-local" id="task-date">
+            <label>Due Date & Time</label>
+            <div class="custom-date-trigger" id="custom-date-trigger">
+              <span id="date-display">Select date & time</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M16 2v4M8 2v4"/></svg>
+            </div>
+            <input type="hidden" id="task-date">
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="task-location">Location</label>
-          <input type="text" id="task-location" autocomplete="off" placeholder="e.g. Room 402">
+          <div class="form-group">
+            <label>Repeat</label>
+            <div class="custom-select" id="custom-select-repeat">
+              <div class="select-trigger"><span>No Repeat</span> <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div class="select-options hidden">
+                <div data-value="none" class="option selected">No Repeat</div>
+                <div data-value="daily" class="option">Daily</div>
+                <div data-value="weekly" class="option">Weekly</div>
+              </div>
+              <input type="hidden" id="task-repeat" value="none">
+            </div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -215,6 +310,85 @@
 
         <div class="form-actions">
           <button type="button" id="delete-task-btn" class="btn-danger hidden">Delete</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Custom Date Picker Modal -->
+  <div id="date-picker-modal" class="modal hidden date-picker-overlay">
+    <div class="modal-content date-picker-content">
+      <div class="date-picker-tabs">
+        <button class="dp-tab active" data-tab="date">Date</button>
+        <button class="dp-tab" data-tab="time">Time</button>
+      </div>
+
+      <div class="dp-view-container">
+      <!-- Date View -->
+      <div id="dp-date-view" class="dp-view">
+        <div class="dp-month-select">
+          <button type="button" id="dp-prev-month">&lsaquo;</button>
+          <span id="dp-current-month">April 2026</span>
+          <button type="button" id="dp-next-month">&rsaquo;</button>
+        </div>
+        <div class="dp-days-header">
+          <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+        </div>
+        <div id="dp-calendar-grid" class="dp-grid"></div>
+      </div>
+
+      <!-- Time View -->
+      <div id="dp-time-view" class="dp-view hidden">
+        <div class="time-dial-container">
+          <div class="time-dial-toggle">
+            <button class="time-mode-btn active" data-mode="hrs">Hrs</button>
+            <button class="time-mode-btn" data-mode="mins">Mins</button>
+            <button class="time-ampm-btn" id="time-ampm">AM</button>
+          </div>
+          
+          <div class="dp-dial" id="dp-time-dial">
+            <div class="dp-dial-inner">
+              <div class="dp-dial-value" id="dp-time-value">09</div>
+              <div class="dp-dial-hand" id="dp-time-hand"></div>
+            </div>
+            <div class="dp-dial-numbers" id="dp-dial-numbers"></div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="form-actions dp-actions">
+        <button type="button" class="btn-secondary" id="dp-cancel">Cancel</button>
+        <button type="button" class="btn-primary" id="dp-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Countdown Modal -->
+  <div id="countdown-modal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-cd-btn close-btn">&times;</span>
+      <h2 id="cd-modal-title">Add Countdown</h2>
+      <form id="countdown-form">
+        <input type="hidden" id="cd-id">
+
+        <div class="form-group">
+          <label for="cd-title">Event Name</label>
+          <input type="text" id="cd-title" required autocomplete="off" placeholder="e.g. Graduation">
+        </div>
+
+        <div class="form-group">
+          <label>Target Date & Time</label>
+          <div class="custom-date-trigger" id="cd-date-trigger">
+            <span id="cd-date-display">Select date & time</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M16 2v4M8 2v4"/></svg>
+          </div>
+          <input type="hidden" id="cd-date">
+        </div>
+
+        <div class="form-actions">
+          <button type="button" id="delete-cd-btn" class="btn-danger hidden">Delete</button>
           <button type="submit" class="btn-primary">Save</button>
         </div>
       </form>
