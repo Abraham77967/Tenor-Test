@@ -1096,7 +1096,7 @@ select option { background: #121218; color: #fff; }
 
 /* Responsive */
 @media (max-width: 900px) {
-  .tasks-content { flex-direction: column; overflow: auto; }
+  .tasks-content { flex-direction: column; overflow: visible; }
   .content-split { flex-direction: column; }
   .duelist-view { max-width: 100%; }
   .calendar-day { min-height: 80px; }
@@ -1176,11 +1176,11 @@ select option { background: #121218; color: #fff; }
 
 .tasks-content {
   margin-top: 1.5rem;
-  flex: 1;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: row;
   gap: 2rem;
-  overflow: hidden;
+  min-height: min-content;
 }
 
 .sub-view {
