@@ -955,21 +955,7 @@ openEditModal = function(task) {
 //  TASKS PAGE & DAILY REMINDERS
 // ══════════════════════════════════════════════
 
-// ── Sub-tab Switcher (Tasks vs Reminders) ──
-function initTasksSubTabs() {
-  const tabs = document.querySelectorAll('.sub-tab');
-  const views = document.querySelectorAll('.sub-view');
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      
-      views.forEach(v => v.classList.add('hidden'));
-      document.getElementById(`sub-view-${tab.dataset.sub}`).classList.remove('hidden');
-    });
-  });
-}
+// ── Sub-tab Switcher logic removed ──
 
 // ── Quick Add Logic ──
 function initQuickAdd() {
@@ -1002,58 +988,169 @@ function initQuickAdd() {
 
 // ── Daily Reminders (Habits) Logic ──
 let reminders = [];
+let currentHabitIndex = 0;
+let habitResetInterval = null;
+let statsViewingDate = new Date();
+
 function initReminders() {
   const q = query(collection(db, 'reminders'), orderBy('createdAt', 'asc'));
   onSnapshot(q, (snapshot) => {
     reminders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderReminders();
+    if (currentHabitIndex >= reminders.length) currentHabitIndex = Math.max(0, reminders.length - 1);
+    renderHeroHabit();
+    renderHabitManager();
+    if(document.getElementById('habit-stats-modal').classList.contains('visible')) renderHabitStats();
   });
 
-  document.getElementById('add-reminder-btn').addEventListener('click', async () => {
-    const title = prompt("What's your daily habit? (e.g. Eat Pills)");
+  // Settings Panel Toggle
+  const settingsBtn = document.getElementById('habit-settings-btn');
+  const managePanel = document.getElementById('habit-manage-panel');
+  settingsBtn.addEventListener('click', () => {
+    managePanel.classList.toggle('hidden');
+  });
+
+  // Add Habit
+  const input = document.getElementById('add-reminder-input');
+  const submit = document.getElementById('add-reminder-submit');
+  const add = async () => {
+    const title = input.value.trim();
     if (!title) return;
-    await addDoc(collection(db, 'reminders'), {
-      title,
-      completedDates: [],
-      createdAt: serverTimestamp()
+    try {
+      await addDoc(collection(db, 'reminders'), {
+        title, completedDates: [], createdAt: serverTimestamp()
+      });
+      input.value = '';
+      if (navigator.vibrate) navigator.vibrate(10);
+    } catch (e) {
+      console.error("Error adding habit:", e);
+    }
+  };
+  if(input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+  if(submit) submit.addEventListener('click', add);
+
+  // Hero Habit Navigation
+  document.getElementById('habit-prev').addEventListener('click', () => {
+    if(reminders.length < 2) return;
+    currentHabitIndex = (currentHabitIndex - 1 + reminders.length) % reminders.length;
+    renderHeroHabit();
+  });
+  document.getElementById('habit-next').addEventListener('click', () => {
+    if(reminders.length < 2) return;
+    currentHabitIndex = (currentHabitIndex + 1) % reminders.length;
+    renderHeroHabit();
+  });
+
+  // Hero Check
+  document.getElementById('hero-check-btn').addEventListener('click', () => {
+    const rem = reminders[currentHabitIndex];
+    if(!rem) return;
+    const today = new Date().toISOString().split('T')[0];
+    toggleReminderCustom(rem, today);
+  });
+
+  // Reset Timer Start
+  if(habitResetInterval) clearInterval(habitResetInterval);
+  habitResetInterval = setInterval(updateHeroCountdown, 1000);
+  updateHeroCountdown();
+
+  // Habit Stats Modal
+  const statsBtn = document.getElementById('habit-stats-btn');
+  const statsModal = document.getElementById('habit-stats-modal');
+  const closeStatsBtn = document.getElementById('close-stats-btn');
+  
+  if(statsBtn) {
+    statsBtn.addEventListener('click', () => {
+      if(reminders.length === 0) return;
+      statsViewingDate = new Date();
+      renderHabitStats();
+      statsModal.classList.remove('hidden');
+      requestAnimationFrame(() => statsModal.classList.add('visible'));
     });
+  }
+  
+  const closeStats = () => {
+    statsModal.classList.remove('visible');
+    setTimeout(() => statsModal.classList.add('hidden'), 300);
+  };
+  if(closeStatsBtn) closeStatsBtn.addEventListener('click', closeStats);
+  if(statsModal) statsModal.addEventListener('click', (e) => { if(e.target === statsModal) closeStats(); });
+
+  document.getElementById('hc-prev-month').addEventListener('click', () => {
+    statsViewingDate.setMonth(statsViewingDate.getMonth() - 1);
+    renderHabitStats();
+  });
+  document.getElementById('hc-next-month').addEventListener('click', () => {
+    statsViewingDate.setMonth(statsViewingDate.getMonth() + 1);
+    renderHabitStats();
   });
 }
 
-function renderReminders() {
-  const list = document.getElementById('reminders-list');
-  list.innerHTML = '';
+function renderHeroHabit() {
+  const display = document.getElementById('hero-habit-display');
+  const empty = document.getElementById('hero-habit-empty');
   
+  if (reminders.length === 0) {
+    if(display) display.classList.add('hidden');
+    if(empty) empty.classList.remove('hidden');
+    return;
+  }
+  
+  if(display) display.classList.remove('hidden');
+  if(empty) empty.classList.add('hidden');
+
+  const rem = reminders[currentHabitIndex];
   const today = new Date().toISOString().split('T')[0];
+  const isDoneToday = rem.completedDates && rem.completedDates.includes(today);
 
+  document.getElementById('hero-habit-title').textContent = rem.title;
+  
+  const checkBtn = document.getElementById('hero-check-btn');
+  if (isDoneToday) {
+    checkBtn.classList.add('completed');
+  } else {
+    checkBtn.classList.remove('completed');
+  }
+  
+  // Hide arrows if only 1 habit
+  document.getElementById('habit-prev').style.opacity = reminders.length > 1 ? '1' : '0';
+  document.getElementById('habit-next').style.opacity = reminders.length > 1 ? '1' : '0';
+  document.getElementById('habit-prev').style.pointerEvents = reminders.length > 1 ? 'auto' : 'none';
+  document.getElementById('habit-next').style.pointerEvents = reminders.length > 1 ? 'auto' : 'none';
+}
+
+function renderHabitManager() {
+  const list = document.getElementById('habit-manage-list');
+  if(!list) return;
+  list.innerHTML = '';
   reminders.forEach(rem => {
-    const isDoneToday = rem.completedDates && rem.completedDates.includes(today);
-    
-    const card = document.createElement('div');
-    card.className = `habit-card ${isDoneToday ? 'completed' : ''}`;
-    card.innerHTML = `
-      <div class="habit-header">
-        <span class="habit-title">${rem.title}</span>
-        <div class="habit-check">
-          ${isDoneToday ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-        </div>
-      </div>
-    `;
-
-    card.addEventListener('click', () => toggleReminder(rem, today));
-    
-    // Long press to delete habit
-    attachLongPress(card, () => {
-      if (confirm(`Delete habit "${rem.title}"?`)) {
+    const item = document.createElement('div');
+    item.className = 'habit-manage-item';
+    item.innerHTML = `<span>${rem.title}</span> <button>Delete</button>`;
+    item.querySelector('button').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if(confirm(`Delete habit "${rem.title}"?`)) {
         deleteDoc(doc(db, 'reminders', rem.id));
       }
     });
-
-    list.appendChild(card);
+    list.appendChild(item);
   });
 }
 
-async function toggleReminder(rem, dateStr) {
+function updateHeroCountdown() {
+  const now = new Date();
+  const reset = new Date();
+  reset.setHours(24, 0, 0, 0); // Midnight
+  const diff = reset - now;
+  
+  const h = Math.floor(diff / (1000 * 60 * 60));
+  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const s = Math.floor((diff % (1000 * 60)) / 1000);
+  
+  const el = document.getElementById('hero-reset-time');
+  if(el) el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+async function toggleReminderCustom(rem, dateStr) {
   const ref = doc(db, 'reminders', rem.id);
   let newDates = [...(rem.completedDates || [])];
   
@@ -1067,11 +1164,58 @@ async function toggleReminder(rem, dateStr) {
   await updateDoc(ref, { completedDates: newDates });
 }
 
+function renderHabitStats() {
+  if(reminders.length === 0) return;
+  const rem = reminders[currentHabitIndex];
+  
+  document.getElementById('stat-total-checks').textContent = rem.completedDates ? rem.completedDates.length : 0;
+  
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const y = statsViewingDate.getFullYear();
+  const m = statsViewingDate.getMonth();
+  document.getElementById('hc-current-month').textContent = `${monthNames[m]} ${y}`;
+  
+  const grid = document.getElementById('hc-grid');
+  grid.innerHTML = '';
+  
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  
+  for (let i = 0; i < firstDay; i++) {
+    const d = document.createElement('div'); d.className = 'dp-day empty'; grid.appendChild(d);
+  }
+  
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = document.createElement('div');
+    d.className = 'dp-day';
+    d.textContent = i;
+    
+    // Check if this date is completed
+    const loopDate = new Date(y, m, i);
+    // Format YYYY-MM-DD local time directly to match splits
+    const yy = loopDate.getFullYear();
+    const mm = String(loopDate.getMonth()+1).padStart(2,'0');
+    const dd = String(loopDate.getDate()).padStart(2,'0');
+    const dateStr = `${yy}-${mm}-${dd}`;
+    
+    if (rem.completedDates && rem.completedDates.includes(dateStr)) {
+      d.style.background = 'rgba(139, 92, 246, 0.2)';
+      d.style.borderColor = '#8B5CF6';
+      d.style.color = '#fff';
+    }
+    
+    d.addEventListener('click', () => {
+      toggleReminderCustom(rem, dateStr);
+    });
+    
+    grid.appendChild(d);
+  }
+}
+
 // ── Refactored View Switcher ──
 const originalInit = init;
 init = async function() {
   await originalInit();
-  initTasksSubTabs();
   initQuickAdd();
   initReminders();
   initCountdowns();

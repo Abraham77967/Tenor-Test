@@ -27,15 +27,12 @@
         <div class="app-container">
           <header class="top-nav">
             <h1 class="logo">Tasks</h1>
-            <div class="tasks-sub-tabs">
-              <button class="sub-tab active" data-sub="all">Tasks</button>
-              <button class="sub-tab" data-sub="reminders">Reminders</button>
-            </div>
           </header>
 
           <main class="tasks-content">
             <!-- All Tasks View -->
-            <div id="sub-view-all" class="sub-view">
+            <div id="sub-view-all" class="sub-view content-card">
+              <h2 class="card-header">Target Assignments</h2>
               <div class="quick-add-bar">
                 <input type="text" id="quick-add-input" placeholder="Quick add task..." autocomplete="off">
                 <button id="quick-add-submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -45,14 +42,50 @@
               </div>
             </div>
 
-            <!-- Daily Reminders View -->
-            <div id="sub-view-reminders" class="sub-view hidden">
-              <div class="reminders-controls">
-                <p class="section-label">Daily Habits</p>
-                <button id="add-reminder-btn" class="btn-primary-mini">Add Habit</button>
+            <!-- Daily Habits Hero View -->
+            <div id="sub-view-reminders" class="sub-view content-card hero-habit-card">
+              <div class="hero-habit-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+                <h2 class="card-header" style="margin-bottom:0;">Daily Focus</h2>
+                <div class="habit-actions" style="display:flex; gap:0.5rem;">
+                  <button id="habit-stats-btn" class="icon-btn" aria-label="Stats & History" title="View History" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
+                  </button>
+                  <button id="habit-settings-btn" class="icon-btn" aria-label="Manage Habits" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                  </button>
+                </div>
               </div>
-              <div id="reminders-list" class="task-list reminders-grid">
-                <!-- Habits injected by JS -->
+
+              <div id="habit-manage-panel" class="hidden" style="margin-bottom: 2rem;">
+                <div class="quick-add-bar habit-add-bar">
+                  <input type="text" id="add-reminder-input" placeholder="Add a new daily habit..." autocomplete="off">
+                  <button id="add-reminder-submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                </div>
+                <div id="habit-manage-list" style="margin-top:1rem; max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem;"></div>
+              </div>
+
+              <div id="hero-habit-display" class="hero-habit-display" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                <div id="hero-habit-title" class="hero-habit-title">Loading...</div>
+                
+                <div id="hero-habit-center" class="hero-habit-center" style="display:flex; align-items:center; gap: 2rem; margin: 3rem 0;">
+                  <button class="nav-arrow" id="habit-prev" style="background:none; border:none; font-size:3rem; color:var(--text-tertiary); cursor:pointer;">&lsaquo;</button>
+                  
+                  <div class="hero-check-container" id="hero-check-btn">
+                    <svg class="hero-ring-svg" viewBox="0 0 200 200">
+                      <circle class="hero-ring-bg" cx="100" cy="100" r="90" />
+                      <circle class="hero-ring-progress" id="hero-ring-progress" cx="100" cy="100" r="90" />
+                    </svg>
+                    <div class="hero-check-icon">
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                  </div>
+
+                  <button class="nav-arrow" id="habit-next" style="background:none; border:none; font-size:3rem; color:var(--text-tertiary); cursor:pointer;">&rsaquo;</button>
+                </div>
+
+                <div class="hero-countdown" id="hero-countdown-box" style="font-size: 0.9rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:1px; background:rgba(255,255,255,0.05); padding:8px 16px; border-radius:100px;">
+                  Resets in <span id="hero-reset-time" style="color:var(--text-primary); font-weight:600;">00:00:00</span>
+                </div>
               </div>
             </div>
           </main>
@@ -392,6 +425,33 @@
           <button type="submit" class="btn-primary">Save</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Habit Stats Modal -->
+  <div id="habit-stats-modal" class="modal hidden">
+    <div class="modal-content habit-stats-content">
+      <span class="close-btn" id="close-stats-btn">&times;</span>
+      <h2 style="margin-bottom:1rem;">Habit History</h2>
+      
+      <div class="stats-top-bar" style="display:flex; justify-content:center; margin-bottom:2rem;">
+        <div class="stat-box" style="text-align:center;">
+          <div class="stat-val" id="stat-total-checks" style="font-size:3rem; font-weight:300; color:#8B5CF6; line-height:1;">0</div>
+          <div class="stat-lbl" style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-secondary); margin-top:0.5rem;">Total Checks</div>
+        </div>
+      </div>
+
+      <div class="habit-calendar">
+        <div class="dp-month-select" style="margin-bottom: 1rem; margin-top:2rem;">
+          <button id="hc-prev-month">&lsaquo;</button>
+          <span id="hc-current-month" style="font-size:1.1rem;">April 2026</span>
+          <button id="hc-next-month">&rsaquo;</button>
+        </div>
+        <div class="dp-days-header" style="opacity:0.7;">
+          <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+        </div>
+        <div id="hc-grid" class="dp-grid"></div>
+      </div>
     </div>
   </div>
 
