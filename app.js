@@ -34,7 +34,7 @@ let currentDate = new Date();
 // ══════════════════════════════════════════════
 
 const views = ['tasks', 'calendar', 'countdown', 'zone'];
-let activeViewIndex = 0;
+let activeViewIndex = 1;
 const viewContainer = document.getElementById('view-container');
 const tabBar = document.getElementById('tab-bar');
 const tabItems = tabBar.querySelectorAll('.tab-item');
@@ -1002,12 +1002,28 @@ function initReminders() {
     if(document.getElementById('habit-stats-modal').classList.contains('visible')) renderHabitStats();
   });
 
-  // Settings Panel Toggle
+  // Settings Panel Overlay (Modal)
   const settingsBtn = document.getElementById('habit-settings-btn');
-  const managePanel = document.getElementById('habit-manage-panel');
-  settingsBtn.addEventListener('click', () => {
-    managePanel.classList.toggle('hidden');
-  });
+  const manageModal = document.getElementById('habit-manage-modal');
+  const closeManageBtn = document.getElementById('close-manage-btn');
+
+  const openManage = () => {
+    manageModal.classList.remove('hidden');
+    requestAnimationFrame(() => manageModal.classList.add('visible'));
+    // Reset to list view
+    document.getElementById('habit-edit-panel').classList.add('hidden');
+    document.getElementById('habit-manage-list').classList.remove('hidden');
+    document.querySelector('.habit-add-bar').classList.remove('hidden');
+  };
+
+  const closeManage = () => {
+    manageModal.classList.remove('visible');
+    setTimeout(() => manageModal.classList.add('hidden'), 300);
+  };
+
+  if(settingsBtn) settingsBtn.addEventListener('click', openManage);
+  if(closeManageBtn) closeManageBtn.addEventListener('click', closeManage);
+  if(manageModal) manageModal.addEventListener('click', (e) => { if(e.target === manageModal) closeManage(); });
 
   // Add Habit
   const input = document.getElementById('add-reminder-input');
@@ -1031,13 +1047,57 @@ function initReminders() {
   // Hero Habit Navigation
   document.getElementById('habit-prev').addEventListener('click', () => {
     if(reminders.length < 2) return;
-    currentHabitIndex = (currentHabitIndex - 1 + reminders.length) % reminders.length;
-    renderHeroHabit();
+    const display = document.getElementById('hero-habit-display');
+    display.classList.add('fade-switch');
+    setTimeout(() => {
+      currentHabitIndex = (currentHabitIndex - 1 + reminders.length) % reminders.length;
+      renderHeroHabit();
+    }, 150);
+    setTimeout(() => display.classList.remove('fade-switch'), 300);
   });
   document.getElementById('habit-next').addEventListener('click', () => {
     if(reminders.length < 2) return;
-    currentHabitIndex = (currentHabitIndex + 1) % reminders.length;
-    renderHeroHabit();
+    const display = document.getElementById('hero-habit-display');
+    display.classList.add('fade-switch');
+    setTimeout(() => {
+      currentHabitIndex = (currentHabitIndex + 1) % reminders.length;
+      renderHeroHabit();
+    }, 150);
+    setTimeout(() => display.classList.remove('fade-switch'), 300);
+  });
+  
+  // Hero Habit Edit Bindings
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', (e) => {
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      e.target.classList.add('selected');
+    });
+  });
+
+  document.getElementById('edit-habit-save').addEventListener('click', async () => {
+    const id = document.getElementById('edit-habit-id').value;
+    const title = document.getElementById('edit-habit-input').value.trim();
+    const selectedSwatch = document.querySelector('.color-swatch.selected');
+    const color = selectedSwatch ? selectedSwatch.dataset.color : '#FFFFFF';
+    
+    if(!id || !title) return;
+    try {
+      await updateDoc(doc(db, 'reminders', id), { title, color });
+      document.getElementById('habit-edit-panel').classList.add('hidden');
+      document.getElementById('habit-manage-list').classList.remove('hidden');
+      document.querySelector('.habit-add-bar').classList.remove('hidden');
+    } catch(e) { console.error("Error updating habit:", e); }
+  });
+
+  document.getElementById('edit-habit-delete').addEventListener('click', async () => {
+    const id = document.getElementById('edit-habit-id').value;
+    if(!id) return;
+    if(confirm('Delete this habit?')) {
+      await deleteDoc(doc(db, 'reminders', id));
+      document.getElementById('habit-edit-panel').classList.add('hidden');
+      document.getElementById('habit-manage-list').classList.remove('hidden');
+      document.querySelector('.habit-add-bar').classList.remove('hidden');
+    }
   });
 
   // Hero Check
@@ -1101,14 +1161,40 @@ function renderHeroHabit() {
   const rem = reminders[currentHabitIndex];
   const today = new Date().toISOString().split('T')[0];
   const isDoneToday = rem.completedDates && rem.completedDates.includes(today);
+  const color = rem.color || '#FFFFFF';
 
-  document.getElementById('hero-habit-title').textContent = rem.title;
+  const titleEl = document.getElementById('hero-habit-title');
+  titleEl.textContent = rem.title;
+  titleEl.style.background = `linear-gradient(to right, ${color}, rgba(255,255,255,0.8))`;
+  titleEl.style.webkitBackgroundClip = 'text';
+  titleEl.style.backgroundClip = 'text';
+  titleEl.style.filter = `drop-shadow(0 0 20px ${color}80)`;
+  
+  const aura = document.getElementById('hero-aura');
+  if (aura) {
+    aura.style.background = `radial-gradient(circle, ${color} 0%, transparent 70%)`;
+  }
   
   const checkBtn = document.getElementById('hero-check-btn');
+  checkBtn.style.filter = `drop-shadow(0 0 25px ${color}33)`;
+  
+  const ringProgress = document.getElementById('hero-ring-progress');
+  const ringBg = document.querySelector('.hero-ring-bg');
+  
+  if (ringProgress) {
+    ringProgress.style.stroke = color;
+    ringBg.style.stroke = `${color}33`; // 20% opacity for bg ring
+  }
+  
+  const checkIcon = document.querySelector('.hero-check-icon');
+  if (checkIcon) checkIcon.style.color = color;
+
   if (isDoneToday) {
     checkBtn.classList.add('completed');
+    if(ringProgress) ringProgress.style.fill = `${color}1A`; // 10% opacity fill
   } else {
     checkBtn.classList.remove('completed');
+    if(ringProgress) ringProgress.style.fill = 'transparent';
   }
   
   // Hide arrows if only 1 habit
@@ -1125,14 +1211,31 @@ function renderHabitManager() {
   reminders.forEach(rem => {
     const item = document.createElement('div');
     item.className = 'habit-manage-item';
-    item.innerHTML = `<span>${rem.title}</span> <button>Delete</button>`;
-    item.querySelector('button').addEventListener('click', (e) => {
-      e.stopPropagation();
-      if(confirm(`Delete habit "${rem.title}"?`)) {
-        deleteDoc(doc(db, 'reminders', rem.id));
-      }
+    item.style.cursor = 'pointer';
+    
+    // Add color dot indicator
+    const dotColor = rem.color || '#FFFFFF';
+    item.innerHTML = `<div style="display:flex; align-items:center; gap:8px;"><div style="width:12px; height:12px; border-radius:50%; background:${dotColor};"></div><span>${rem.title}</span></div> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5;"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+    
+    item.addEventListener('click', () => {
+      openHabitEdit(rem);
     });
+    
     list.appendChild(item);
+  });
+}
+
+function openHabitEdit(rem) {
+  document.getElementById('habit-manage-list').classList.add('hidden');
+  document.querySelector('.habit-add-bar').classList.add('hidden');
+  document.getElementById('habit-edit-panel').classList.remove('hidden');
+  
+  document.getElementById('edit-habit-id').value = rem.id;
+  document.getElementById('edit-habit-input').value = rem.title;
+  
+  const color = rem.color || '#FFFFFF';
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.classList.toggle('selected', sw.dataset.color.toUpperCase() === color.toUpperCase());
   });
 }
 
@@ -1167,8 +1270,12 @@ async function toggleReminderCustom(rem, dateStr) {
 function renderHabitStats() {
   if(reminders.length === 0) return;
   const rem = reminders[currentHabitIndex];
+  const color = rem.color || '#FFFFFF';
   
-  document.getElementById('stat-total-checks').textContent = rem.completedDates ? rem.completedDates.length : 0;
+  const statValEl = document.getElementById('stat-total-checks');
+  statValEl.textContent = rem.completedDates ? rem.completedDates.length : 0;
+  statValEl.style.color = color;
+  statValEl.style.textShadow = `0 0 20px ${color}80`;
   
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const y = statsViewingDate.getFullYear();
@@ -1199,9 +1306,10 @@ function renderHabitStats() {
     const dateStr = `${yy}-${mm}-${dd}`;
     
     if (rem.completedDates && rem.completedDates.includes(dateStr)) {
-      d.style.background = 'rgba(139, 92, 246, 0.2)';
-      d.style.borderColor = '#8B5CF6';
+      d.style.background = `${color}33`; // 20% opacity
+      d.style.borderColor = color;
       d.style.color = '#fff';
+      d.style.boxShadow = `0 0 10px ${color}4d`; // 30% opacity glow
     }
     
     d.addEventListener('click', () => {

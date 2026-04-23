@@ -1096,7 +1096,7 @@ select option { background: #121218; color: #fff; }
 
 /* Responsive */
 @media (max-width: 900px) {
-  .tasks-content { flex-direction: column; overflow: visible; }
+  .tasks-content { flex-direction: column; overflow: hidden; }
   .content-split { flex-direction: column; }
   .duelist-view { max-width: 100%; }
   .calendar-day { min-height: 80px; }
@@ -1176,11 +1176,11 @@ select option { background: #121218; color: #fff; }
 
 .tasks-content {
   margin-top: 1.5rem;
-  flex: 1 0 auto;
+  flex: 1;
   display: flex;
   flex-direction: row;
   gap: 2rem;
-  min-height: min-content;
+  overflow: hidden;
 }
 
 .sub-view {
@@ -1188,6 +1188,7 @@ select option { background: #121218; color: #fff; }
   display: flex;
   flex-direction: column;
   animation: fadeIn 0.3s ease-out;
+  overflow: hidden;
 }
 
 .content-card {
@@ -1201,6 +1202,8 @@ select option { background: #121218; color: #fff; }
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow-y: auto;
+  height: 100%;
 }
 
 .card-header {
@@ -1263,8 +1266,9 @@ select option { background: #121218; color: #fff; }
 }
 
 #add-reminder-submit {
-  background: #8B5CF6;
-  box-shadow: 0 0 16px rgba(139, 92, 246, 0.4);
+  background: white;
+  color: var(--bg-page);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.4);
 }
 
 #quick-add-submit:active, #add-reminder-submit:active {
@@ -1282,6 +1286,66 @@ select option { background: #121218; color: #fff; }
 .hero-habit-card {
   position: relative;
   overflow: hidden;
+  transition: all 0.4s var(--ease-fluid);
+}
+
+/* Fade Switch Animation */
+.fade-switch {
+  animation: fadeSwitchAnim 0.3s var(--ease-fluid);
+}
+
+@keyframes fadeSwitchAnim {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Color Picker UI */
+.color-swatch-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.2s;
+}
+.color-swatch.selected {
+  border-color: #1a1a2e;
+  transform: scale(1.1);
+}
+/* Additional Edit Actions Animations */
+#edit-habit-save, #edit-habit-delete {
+  transition: all 0.3s var(--ease-fluid);
+}
+#edit-habit-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+#edit-habit-save:active {
+  transform: translateY(0);
+}
+#edit-habit-delete:hover {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+#edit-habit-panel {
+  transition: all 0.4s var(--ease-fluid);
+  transform-origin: top;
+}
+#edit-habit-panel.hidden {
+  display: none;
+  opacity: 0;
+  transform: scaleY(0);
+}
+#edit-habit-panel:not(.hidden) {
+  display: block;
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .hero-habit-title {
@@ -1291,10 +1355,10 @@ select option { background: #121218; color: #fff; }
   text-transform: uppercase;
   letter-spacing: 6px;
   text-align: center;
-  background: linear-gradient(to right, #C084FC, #8B5CF6);
-  -webkit-background-clip: text;
   background-clip: text;
+  -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  transition: background 0.3s;
   margin-bottom: 1rem;
   line-height: 1.1;
 }
@@ -1329,49 +1393,51 @@ select option { background: #121218; color: #fff; }
 }
 
 .hero-ring-bg {
-  fill: rgba(139, 92, 246, 0.05);
-  stroke: rgba(139, 92, 246, 0.2);
+  fill: rgba(255, 255, 255, 0.05);
+  stroke: rgba(255, 255, 255, 0.2);
   stroke-width: 4;
 }
 
 .hero-ring-progress {
-  fill: rgba(139, 92, 246, 0.1);
-  stroke: #8B5CF6;
+  fill: rgba(255, 255, 255, 0.1);
+  stroke: white;
   stroke-width: 8;
   stroke-linecap: round;
   stroke-dasharray: 565.48;
   stroke-dashoffset: 565.48;
-  transition: stroke-dashoffset 0.8s var(--ease-fluid), fill 0.8s;
+  opacity: 0;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.16, 1, 0.3, 1), fill 0.9s ease, opacity 0.7s ease;
 }
 
 .hero-check-icon {
-  color: #8B5CF6;
+  color: white;
   z-index: 10;
-  transition: all 0.4s var(--ease-elastic);
-  transform: scale(0);
-  opacity: 0;
+  transition: all 0.5s var(--ease-fluid);
+  transform: scale(0.8);
+  opacity: 0.15; /* Dormant state */
 }
 
 /* Completed State */
 .hero-check-container.completed .hero-ring-progress {
   stroke-dashoffset: 0;
-  fill: rgba(139, 92, 246, 0.2);
+  opacity: 1;
+  fill: rgba(255, 255, 255, 0.2);
 }
 
 .hero-check-container.completed .hero-ring-bg {
-  stroke: rgba(139, 92, 246, 0.5);
+  stroke: rgba(255, 255, 255, 0.5);
 }
 
 .hero-check-container.completed .hero-check-icon {
-  transform: scale(1);
+  transform: scale(1.1);
   opacity: 1;
-  animation: checkPop 0.6s var(--ease-elastic);
+  animation: checkPopGlow 0.8s var(--ease-elastic) forwards;
 }
 
-@keyframes checkPop {
-  0% { transform: scale(0); }
-  50% { transform: scale(1.3); }
-  100% { transform: scale(1); }
+@keyframes checkPopGlow {
+  0% { transform: scale(0.8); filter: drop-shadow(0 0 0 transparent); }
+  50% { transform: scale(1.3); filter: drop-shadow(0 0 20px currentColor); }
+  100% { transform: scale(1.1); filter: drop-shadow(0 0 10px currentColor); }
 }
 
 .nav-arrow:hover {
@@ -1383,22 +1449,25 @@ select option { background: #121218; color: #fff; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255,255,255,0.05);
-  padding: 12px 16px;
-  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
   font-weight: 500;
+  transition: all 0.3s ease;
 }
-.habit-manage-item button {
-  background: rgba(248, 113, 113, 0.1);
-  color: #F87171;
-  border: none;
-  padding: 6px 12px;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 600;
+.habit-manage-item:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--accent-light);
 }
-.habit-manage-item button:hover { background: rgba(248, 113, 113, 0.2); }
+
+#habit-manage-list::-webkit-scrollbar {
+  width: 6px;
+}
+#habit-manage-list::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 10px;
+}
 
 
 /* Fullscreen Calendar */
@@ -1406,7 +1475,7 @@ select option { background: #121218; color: #fff; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-top: 1rem;
+  margin-top: 0;
   align-items: center;
 }
 
@@ -1417,7 +1486,7 @@ select option { background: #121218; color: #fff; }
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg), 0 0 40px rgba(0, 0, 0, 0.2);
-  padding: 24px 32px;
+  padding: 16px 24px;
   max-width: 1100px;
   width: 100%;
 }
@@ -1427,7 +1496,7 @@ select option { background: #121218; color: #fff; }
   align-items: center;
   justify-content: center;
   gap: 2rem;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .hero-month-title {
