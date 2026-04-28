@@ -154,6 +154,14 @@ button, input, select, textarea {
   overflow: hidden;
 }
 
+.app-header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 100;
+  padding: 48px 24px;
+}
+
 .view-container {
   flex: 1;
   position: relative;
@@ -163,6 +171,7 @@ button, input, select, textarea {
   will-change: transform;
   z-index: 10;
   touch-action: pan-y pan-x;
+  padding-top: 20px;
 }
 
 .view-container.swiping {
@@ -444,7 +453,8 @@ button, input, select, textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 4.5rem;
+  margin-top: -30px;
 }
 
 .calendar-header h2 {
@@ -524,6 +534,33 @@ button, input, select, textarea {
   overflow-y: auto;
   max-height: 60vh;
   padding-right: 0.5rem;
+}
+
+/* Empty State Styling */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--text-secondary);
+  gap: 0.75rem;
+}
+
+.empty-state p {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.empty-state small {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .upcoming-mini-card {
@@ -1123,6 +1160,46 @@ button, input, select, textarea {
   transform: translateY(0) scale(1);
 }
 
+#habit-edit-panel {
+  opacity: 0;
+  transform: translateY(30px) scale(0.96);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.6s ease;
+  box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+}
+
+#habit-edit-panel.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.05);
+}
+
+#habit-edit-panel.hidden {
+  display: none;
+}
+
+#custom-color-picker {
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+#custom-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+#custom-color-picker::-webkit-color-swatch {
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.color-swatch-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .close-btn {
   position: absolute;
   top: 16px; right: 20px;
@@ -1277,6 +1354,16 @@ textarea:focus {
 }
 
 /* Context Menu */
+.context-menu-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2999;
+  background: transparent;
+}
+
 .context-menu {
   position: fixed;
   background: rgba(30,30,38, 0.95);
@@ -1530,6 +1617,106 @@ textarea:focus {
   padding-bottom: 100px;
 }
 
+/* Today's Work Card */
+.today-work-card {
+  border: 1px dashed var(--border-light);
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.3s var(--ease-fluid);
+  min-height: 150px;
+}
+
+.today-work-card:hover {
+  border-color: var(--accent-light);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.icon-btn-clear {
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.today-work-card:hover .icon-btn-clear {
+  opacity: 1;
+}
+
+.today-work-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 60px;
+}
+
+.empty-state-mini {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1.5rem;
+  opacity: 0.7;
+}
+
+/* Drag & Drop States */
+.task-card {
+  transition: all 0.3s var(--ease-fluid);
+  cursor: grab;
+}
+
+.task-card:active {
+  cursor: grabbing;
+}
+
+.task-card.dragging {
+  opacity: 0.5;
+  transform: scale(0.95) rotate(2deg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--accent);
+  z-index: 1000;
+}
+
+.drop-zone {
+  position: relative;
+}
+
+.drop-zone.drag-over {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: var(--accent);
+  transform: scale(1.01);
+  box-shadow: inset 0 0 20px rgba(96, 165, 250, 0.1);
+}
+
+.drop-zone.drag-over::after {
+  content: 'Drop here!';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 1.1rem;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Animation for tasks moving */
+.task-card.animate-move {
+  animation: popIn 0.3s var(--ease-spring);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* ══════════════════════════════════════════════
    HERO HABIT DISPLAY
    ══════════════════════════════════════════════ */
@@ -1725,7 +1912,7 @@ textarea:focus {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-top: 0;
+  margin-top: 0px;
   align-items: center;
 }
 
@@ -1747,7 +1934,7 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   gap: 2rem;
-  margin-bottom: 16px;
+  margin-bottom: 30px;
 }
 
 .hero-month-title {
@@ -1969,6 +2156,43 @@ textarea:focus {
   filter: blur(50px);
   z-index: 0;
   pointer-events: none;
+}
+
+.cd-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  margin-bottom: 2rem;
+  align-self: flex-start;
+}
+
+.cd-back-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  transform: translateX(-4px);
+}
+
+.cd-back-btn:active {
+  transform: translateX(-2px) scale(0.98);
+}
+
+.cd-back-btn svg {
+  transition: transform 0.25s ease;
+}
+
+.cd-back-btn:hover svg {
+  transform: translateX(-3px);
 }
 
 .countdown-full-display {

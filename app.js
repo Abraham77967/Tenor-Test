@@ -9,8 +9,16 @@ import {
   deleteDoc, 
   query, 
   orderBy, 
-  serverTimestamp 
+  serverTimestamp,
+  where
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDzea16zmYlrQIE4GA0SH2lUPIgTEkO9N8",
@@ -24,10 +32,302 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
-const tasksCol = collection(db, 'tasks');
+const auth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
 
+let currentUser = null;
 let tasks = [];
+let reminders = [];
+let countdowns = [];
 let currentDate = new Date();
+
+// Store unsubscribers for cleanup
+let unsubscribers = {
+  tasks: null,
+  reminders: null,
+  countdowns: null
+};
+
+// ══════════════════════════════════════════════
+//  AUTHENTICATION
+// ══════════════════════════════════════════════
+
+// Create loading screen immediately
+function createLoadingScreen() {
+  if (document.getElementById('loading-screen')) return;
+  const loading = document.createElement('div');
+  loading.id = 'loading-screen';
+  loading.innerHTML = `
+    <div class="loading-content">
+      <div class="loading-logo">Tenor</div>
+      <div class="loading-spinner"></div>
+    </div>
+  `;
+  document.body.appendChild(loading);
+  
+  const style = document.createElement('style');
+  style.id = 'loading-styles';
+  style.textContent = `
+    #loading-screen {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99999;
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    #loading-screen.woosh-out { opacity: 0; transform: scale(1.1); }
+    .loading-content { text-align: center; }
+    .loading-logo {
+      font-family: 'Monoton', cursive;
+      font-size: 3rem; color: white; margin-bottom: 2rem;
+      text-shadow: 0 0 40px rgba(255,255,255,0.3);
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { text-shadow: 0 0 40px rgba(255,255,255,0.2); }
+      50% { text-shadow: 0 0 60px rgba(255,255,255,0.5); }
+    }
+    .loading-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: rgba(255,255,255,0.8);
+      border-radius: 50%; margin: 0 auto;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  `;
+  document.head.appendChild(style);
+}
+
+function hideLoadingScreen() {
+  const loading = document.getElementById('loading-screen');
+  if (loading) {
+    loading.classList.add('woosh-out');
+    setTimeout(() => {
+      loading.remove();
+      document.getElementById('loading-styles')?.remove();
+    }, 600);
+  }
+}
+
+function showAuthScreen() {
+  if (!document.getElementById('auth-overlay')) {
+    const overlay = document.createElement('div');
+    overlay.id = 'auth-overlay';
+    overlay.innerHTML = `
+      <div class="auth-container">
+        <div class="auth-logo">Tenor</div>
+        <p class="auth-subtitle">Your personal productivity companion</p>
+        <button id="google-signin-btn" class="google-signin-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Sign in with Google
+        </button>
+        <p class="auth-note">Sign in to sync your tasks, habits, and countdowns across devices</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      #auth-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10000; opacity: 0;
+        transition: opacity 0.5s ease; pointer-events: none;
+      }
+      #auth-overlay.visible { opacity: 1; pointer-events: all; }
+      .auth-container {
+        text-align: center; padding: 2rem; max-width: 400px; width: 90%;
+        transform: translateY(20px); transition: transform 0.5s ease;
+      }
+      #auth-overlay.visible .auth-container { transform: translateY(0); }
+      .auth-logo { font-family: 'Monoton', cursive; font-size: 4rem; color: white; margin-bottom: 1rem; text-shadow: 0 0 40px rgba(255,255,255,0.3); }
+      .auth-subtitle { color: rgba(255,255,255,0.6); font-size: 1.1rem; margin-bottom: 3rem; }
+      .google-signin-btn {
+        display: inline-flex; align-items: center; gap: 12px;
+        background: white; color: #333; border: none; padding: 16px 32px;
+        border-radius: 50px; font-size: 1rem; font-weight: 500; cursor: pointer;
+        transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      }
+      .google-signin-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 30px rgba(0,0,0,0.3); }
+      .auth-note { color: rgba(255,255,255,0.4); font-size: 0.85rem; margin-top: 2rem; line-height: 1.5; }
+    `;
+    document.head.appendChild(style);
+    document.getElementById('google-signin-btn').addEventListener('click', signInWithGoogle);
+  }
+  document.getElementById('auth-overlay').classList.add('visible');
+}
+
+function hideAuthScreen() {
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 500);
+  }
+}
+
+async function signInWithGoogle() {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    console.log('Signed in as:', result.user.email);
+  } catch (error) {
+    console.error('Sign-in error:', error);
+    alert('Failed to sign in. Please try again.');
+  }
+}
+
+async function signOutUser() {
+  try {
+    await signOut(auth);
+    console.log('Signed out');
+  } catch (error) {
+    console.error('Sign-out error:', error);
+  }
+}
+
+// Listen for auth state changes
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    currentUser = user;
+    console.log('User authenticated:', user.email);
+    hideLoadingScreen();
+    hideAuthScreen();
+    initializeDataListeners();
+  } else {
+    currentUser = null;
+    console.log('User not authenticated');
+    cleanupDataListeners();
+    hideLoadingScreen();
+    showAuthScreen();
+  }
+});
+
+// ══════════════════════════════════════════════
+//  DATA LISTENERS (User-scoped)
+// ══════════════════════════════════════════════
+
+function cleanupDataListeners() {
+  if (unsubscribers.tasks) unsubscribers.tasks();
+  if (unsubscribers.reminders) unsubscribers.reminders();
+  if (unsubscribers.countdowns) unsubscribers.countdowns();
+  unsubscribers = { tasks: null, reminders: null, countdowns: null };
+  tasks = [];
+  reminders = [];
+  countdowns = [];
+  renderCalendar();
+  renderDuelist();
+  syncTodaysWorkDOM();
+  renderHeroHabit();
+  renderCountdowns();
+}
+
+function initializeDataListeners() {
+  if (!currentUser) return;
+  
+  // Clean up existing listeners
+  cleanupDataListeners();
+  
+  // Tasks listener
+  const tasksQuery = query(
+    collection(db, 'tasks'),
+    where('userId', '==', currentUser.uid),
+    orderBy('createdAt', 'desc')
+  );
+  unsubscribers.tasks = onSnapshot(tasksQuery, (snapshot) => {
+    tasks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    renderCalendar();
+    renderDuelist();
+    syncTodaysWorkDOM();
+    renderCalendarUpcoming();
+  }, (error) => {
+    console.error('Tasks listener error:', error);
+    // Fallback if no index exists - use simple query
+    const fallbackQuery = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
+    unsubscribers.tasks = onSnapshot(fallbackQuery, (snapshot) => {
+      tasks = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(t => t.userId === currentUser.uid);
+      renderCalendar();
+      renderDuelist();
+      syncTodaysWorkDOM();
+      renderCalendarUpcoming();
+    });
+  });
+
+  // Reminders listener
+  const remindersQuery = query(
+    collection(db, 'reminders'),
+    where('userId', '==', currentUser.uid),
+    orderBy('createdAt', 'asc')
+  );
+  unsubscribers.reminders = onSnapshot(remindersQuery, (snapshot) => {
+    const newReminders = snapshot.docs.map(doc => {
+      const newData = { id: doc.id, ...doc.data() };
+      // Merge with existing local data to preserve any pending updates
+      const existing = reminders.find(r => r.id === doc.id);
+      if (existing) {
+        // Merge completedDates - use the more recent array
+        if (JSON.stringify(existing.completedDates) !== JSON.stringify(newData.completedDates)) {
+          return newData;
+        }
+        // Also update if title or color changed
+        if (existing.title !== newData.title || existing.color !== newData.color) {
+          return newData;
+        }
+        return existing;
+      }
+      return newData;
+    });
+    reminders = newReminders;
+    renderHeroHabit();
+    renderHabitManager();
+    renderHabitStats();
+  }, (error) => {
+    console.error('Reminders listener error:', error);
+    const fallbackQuery = query(collection(db, 'reminders'), orderBy('createdAt', 'asc'));
+    unsubscribers.reminders = onSnapshot(fallbackQuery, (snapshot) => {
+      reminders = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(r => r.userId === currentUser.uid);
+      renderHeroHabit();
+      renderHabitManager();
+      renderHabitStats();
+    });
+  });
+
+  // Countdowns listener
+  const countdownsQuery = query(
+    collection(db, 'countdowns'),
+    where('userId', '==', currentUser.uid),
+    orderBy('targetDate', 'asc')
+  );
+  unsubscribers.countdowns = onSnapshot(countdownsQuery, (snapshot) => {
+    countdowns = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    renderCountdowns();
+  }, (error) => {
+    console.error('Countdowns listener error:', error);
+    const fallbackQuery = query(collection(db, 'countdowns'), orderBy('targetDate', 'asc'));
+    unsubscribers.countdowns = onSnapshot(fallbackQuery, (snapshot) => {
+      countdowns = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(c => c.userId === currentUser.uid);
+      renderCountdowns();
+    });
+  });
+}
 
 // ══════════════════════════════════════════════
 //  VIEW / TAB NAVIGATION + SWIPE GESTURES
@@ -44,7 +344,6 @@ function switchView(viewName) {
   if (idx === -1) return;
   activeViewIndex = idx;
   
-  // 3 views = 100% / 3 = 33.333% per view
   const percent = idx * (100 / views.length);
   viewContainer.style.transform = `translateX(-${percent}%)`;
 
@@ -134,20 +433,6 @@ const nextBtn = document.getElementById('next-month');
 const calendarGrid = document.getElementById('calendar-grid');
 const duelistList = document.getElementById('duelist-list');
 
-// ── Init ──
-async function init() {
-  const q = query(tasksCol, orderBy('createdAt', 'desc'));
-  onSnapshot(q, (snapshot) => {
-    tasks = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    renderCalendar();
-    renderDuelist();
-    renderCalendarUpcoming();
-  });
-}
-
 // ── Calendar Rendering Logic ──
 function renderCalendar(animate = true) {
   const year = currentDate.getFullYear();
@@ -216,7 +501,6 @@ function renderCalendar(animate = true) {
       
       if (!isToday) return null;
 
-      // Check if finished specifically for this day
       const isFinished = t.completedDates && t.completedDates.includes(dateStr);
       return { ...t, isInstanceFinished: isFinished, instanceDate: dateStr };
     }).filter(t => t !== null);
@@ -224,7 +508,7 @@ function renderCalendar(animate = true) {
     dayTasks.forEach(t => {
       const tag = document.createElement('div');
       tag.className = `event-tag type-${t.type}`;
-      if (t.isInstanceFinished) tag.style.opacity = '0.4'; // Dim finished recurring instances
+      if (t.isInstanceFinished) tag.style.opacity = '0.4';
       tag.textContent = t.title;
       tag.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -249,34 +533,48 @@ let seenTaskIds = new Set();
 
 function renderDuelist() {
   duelistList.innerHTML = '';
+  // Don't clear seenTaskIds - we only want to animate truly NEW cards
   const now = new Date();
   const dateStrToday = now.toISOString().slice(0, 10);
-  now.setHours(0, 0, 0, 0);
-
-  // Generate instances for upcoming tasks (including recurring ones and no-date tasks)
+  // Clear the list first
+  duelistList.innerHTML = '';
+  
+  // Get today's date string for comparison
+  const today = new Date().toISOString().slice(0, 10);
+  
+  // Create instances for each task
   let instances = [];
   tasks.forEach(t => {
     const tStart = t.dueDate ? t.dueDate.slice(0, 10) : null;
     
-    // No-date tasks: Always show in duelist
     if (!tStart) {
-      const finished = t.completedDates?.includes('flexible');
-      instances.push({ ...t, instanceDate: null, isInstanceFinished: !!finished });
+      // Flexible task (no due date)
+      const isFinished = t.completedDates?.includes('flexible');
+      instances.push({ 
+        ...t, 
+        instanceDate: null, 
+        isInstanceFinished: !!isFinished 
+      });
       return;
     }
 
     if (t.recurrence === 'none') {
-      if (new Date(tStart) >= now) {
-        instances.push({ ...t, instanceDate: tStart, isInstanceFinished: t.completedDates?.includes(tStart) });
+      // One-time task - show if today or in future, OR if completed
+      const isCompleted = t.completedDates?.includes(tStart);
+      if (new Date(tStart) >= now || isCompleted) {
+        instances.push({ 
+          ...t, 
+          instanceDate: tStart, 
+          isInstanceFinished: !!isCompleted 
+        });
       }
     } else {
+      // Recurring task - generate instances for next 14 days
       const taskStartDay = new Date(tStart);
-      let lookAhead = new Date(now);
       
-      // Look ahead up to 14 days to find the next occurrence
       for (let i = 0; i < 14; i++) {
-        let checkDate = new Date(lookAhead);
-        checkDate.setDate(lookAhead.getDate() + i);
+        let checkDate = new Date(now);
+        checkDate.setDate(now.getDate() + i);
         let checkDateStr = checkDate.toISOString().slice(0, 10);
         
         if (checkDateStr < tStart) continue;
@@ -286,17 +584,22 @@ function renderDuelist() {
         else if (t.recurrence === 'weekly') match = checkDate.getDay() === taskStartDay.getDay();
 
         if (match) {
-          const finished = t.completedDates?.includes(checkDateStr);
-          if (checkDateStr === dateStrToday && finished) continue;
-          instances.push({ ...t, instanceDate: checkDateStr, isInstanceFinished: finished });
-          break; // only show next one
+          const isCompleted = t.completedDates?.includes(checkDateStr);
+          instances.push({ 
+            ...t, 
+            instanceDate: checkDateStr, 
+            isInstanceFinished: !!isCompleted 
+          });
+          break;
         }
       }
     }
   });
 
+  // Sort: flexible first, then by date
   instances.sort((a, b) => {
-    if (!a.instanceDate) return -1; // null dates at top
+    if (!a.instanceDate && !b.instanceDate) return 0;
+    if (!a.instanceDate) return -1;
     if (!b.instanceDate) return 1;
     return new Date(a.instanceDate) - new Date(b.instanceDate);
   });
@@ -311,63 +614,16 @@ function renderDuelist() {
     return;
   }
 
+  // Render up to 15 instances
   instances.slice(0, 15).forEach((t, index) => {
-    const card = document.createElement('div');
-    card.className = `task-card type-${t.type}`;
-    if (t.isInstanceFinished) card.classList.add('completed');
-
-    const instanceKey = `${t.id}-${t.instanceDate}`;
-    if (!seenTaskIds.has(instanceKey)) {
-      card.classList.add('animate-stagger');
-      card.style.animationDelay = `${index * 50}ms`;
-      seenTaskIds.add(instanceKey);
+    // Skip if this task is in Today's Work
+    if (getTodaysWorkIds().includes(t.id)) {
+      return;
     }
-
-    const checkbox = document.createElement('div');
-    checkbox.className = `task-checkbox${t.isInstanceFinished ? ' checked' : ''}`;
-    checkbox.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      // Optimistic UI for instant smoothness
-      checkbox.classList.toggle('checked');
-      card.classList.toggle('completed');
-      if (navigator.vibrate) navigator.vibrate(5);
-      
-      await toggleComplete(t.id, t.instanceDate);
-    });
-
-    const title = document.createElement('h3');
-    title.textContent = t.title;
-
-    const header = document.createElement('div');
-    header.className = 'task-card-header';
-    header.appendChild(checkbox);
-    header.appendChild(title);
-
-    if (t.type) {
-      const badge = document.createElement('span');
-      badge.className = `task-type-badge type-${t.type}`;
-      badge.textContent = t.type;
-      header.appendChild(badge);
-    }
-
-    card.appendChild(header);
-
-    const metaParts = [];
-    if (t.instanceDate) {
-      const formatted = new Date(t.instanceDate).toLocaleString([], {
-        weekday: 'short', month: 'short', day: 'numeric'
-      });
-      metaParts.push(`<span>${formatted}</span>`);
-    }
-    if (t.description) {
-      const desc = document.createElement('p');
-      desc.className = 'task-desc';
-      desc.textContent = t.description;
-      card.appendChild(desc);
-    }
-
-    card.addEventListener('click', () => openEditModal(t));
-    attachLongPress(card, (e) => showContextMenu(e, t));
+    
+    const card = createTaskCard(t);
+    if (!card) return;
+    
     duelistList.appendChild(card);
   });
 }
@@ -440,21 +696,32 @@ function closeModal() {
 
 taskForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!currentUser) {
+    alert('Please sign in to add tasks');
+    return;
+  }
+  
   const id = document.getElementById('task-id').value;
   const payload = {
     title: document.getElementById('task-title').value,
     type: document.getElementById('task-type').value,
     dueDate: document.getElementById('task-date').value,
     description: document.getElementById('task-desc').value,
-    recurrence: document.getElementById('task-repeat').value
+    recurrence: document.getElementById('task-repeat').value,
+    userId: currentUser.uid
   };
 
   try {
     if (id) {
+      // Preserve completedDates when editing existing task
+      const existingTask = tasks.find(t => t.id === id);
+      if (existingTask) {
+        payload.completedDates = existingTask.completedDates || [];
+      }
       const taskRef = doc(db, 'tasks', id);
       await updateDoc(taskRef, payload);
     } else {
-      await addDoc(tasksCol, {
+      await addDoc(collection(db, 'tasks'), {
         ...payload,
         completedDates: [],
         createdAt: serverTimestamp()
@@ -528,7 +795,6 @@ let isDraggingDial = false;
 function setSetupDialValue(mins, forceDisplay = false) {
   setupMinutes = mins;
   
-  // Only update display text when NOT dragging (on start/stop) or if explicitly forced
   if (forceDisplay || !isDraggingDial) {
     if(zoneDialValue) safeAnimateUpdate(zoneDialValue, mins.toString());
   }
@@ -554,7 +820,6 @@ function updateSetupDial(clientX, clientY) {
   mins = Math.max(5, Math.round(mins / 5) * 5);
   if (mins > 120) mins = 120;
   if (mins !== setupMinutes) {
-    // Only update rotation/conic during drag
     setSetupDialValue(mins);
   }
 }
@@ -573,7 +838,6 @@ if (zoneDial) {
   zoneDial.addEventListener('pointerup', (e) => { 
     isDraggingDial = false; 
     zoneDial.releasePointerCapture(e.pointerId); 
-    // Force show the final value even if it's not a 10
     setSetupDialValue(setupMinutes, true);
     if (navigator.vibrate) navigator.vibrate(10); 
   });
@@ -640,18 +904,37 @@ function updatePauseIcon() { const iconPause = zonePauseBtn.querySelector('.icon
 // ── Touch Utilities ──
 const LONG_PRESS_DURATION = 500;
 function attachLongPress(element, callback) {
-  let timer = null; let didLongPress = false;
+  let timer = null; let didLongPress = false; let willDrag = false;
+  
   const start = (e) => { 
     didLongPress = false; 
     element.classList.add('long-pressing'); 
     timer = setTimeout(() => { 
+      // Don't trigger long press if dragging or about to drag
+      if (willDrag || element.classList.contains('dragging')) {
+        element.classList.remove('long-pressing');
+        return;
+      }
       didLongPress = true; 
       element.classList.remove('long-pressing'); 
       if (navigator.vibrate) navigator.vibrate(30); 
       callback(e); 
     }, LONG_PRESS_DURATION); 
   };
+  
   const cancel = () => { clearTimeout(timer); element.classList.remove('long-pressing'); };
+  
+  // Track if drag will happen
+  element.addEventListener('dragstart', () => {
+    willDrag = true;
+    cancel();
+    element.classList.add('dragging');
+  });
+  
+  element.addEventListener('dragend', () => {
+    willDrag = false;
+  });
+  
   element.addEventListener('click', (e) => { if (didLongPress) { e.stopPropagation(); e.preventDefault(); didLongPress = false; } }, true);
   element.addEventListener('touchstart', start, { passive: true });
   element.addEventListener('touchend', cancel); 
@@ -707,7 +990,6 @@ function dismissContextMenu() {
 //  CUSTOM UI COMPONENTS (SELECT & DATE PICKER)
 // ══════════════════════════════════════════════
 
-// ── Option Group Logic (Chips) ──
 function initOptionGroups() {
   const groups = document.querySelectorAll('.option-group');
   
@@ -717,7 +999,6 @@ function initOptionGroups() {
 
     btns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        console.log(`[OptionGroups] Clicked: ${btn.dataset.value}`);
         const val = btn.dataset.value;
         
         hiddenInput.value = val;
@@ -768,10 +1049,10 @@ const dpDialNumbers = document.getElementById('dp-dial-numbers');
 const dpTimeModeBtns = document.querySelectorAll('.time-mode-btn');
 const dpAMPMBtn = document.getElementById('time-ampm');
 
-let dpSelectedDate = new Date(); // Year, Month, Day
+let dpSelectedDate = new Date();
 let dpSelectedTime = { hrs: 9, mins: 0, ampm: 'AM' };
-let dpViewingDate = new Date(); // For month navigation
-let dpTimeMode = 'hrs'; // 'hrs' or 'mins'
+let dpViewingDate = new Date();
+let dpTimeMode = 'hrs';
 let isDraggingDPDial = false;
 let dpCurrentRot = 0;
 
@@ -831,7 +1112,6 @@ function initDatePicker() {
     dpAMPMBtn.textContent = dpSelectedTime.ampm;
   });
 
-  // Dial Interaction
   dpDial.addEventListener('pointerdown', (e) => { isDraggingDPDial = true; dpDial.setPointerCapture(e.pointerId); updateDPTimeFromCoords(e.clientX, e.clientY); });
   dpDial.addEventListener('pointermove', (e) => { if (isDraggingDPDial) updateDPTimeFromCoords(e.clientX, e.clientY); });
   dpDial.addEventListener('pointerup', (e) => { isDraggingDPDial = false; dpDial.releasePointerCapture(e.pointerId); if (navigator.vibrate) navigator.vibrate(5); });
@@ -905,7 +1185,6 @@ function renderDPCalendar() {
 
 function renderDPDialNumbers() {
   dpDialNumbers.innerHTML = '';
-  const count = dpTimeMode === 'hrs' ? 12 : 12; // Show only 12 intervals (0, 5, 10...) for mins
   const radius = 85;
   for (let i = 1; i <= 12; i++) {
     const val = dpTimeMode === 'hrs' ? i : (i === 12 ? '00' : String(i * 5).padStart(2, '0'));
@@ -952,7 +1231,6 @@ function updateDPTimeFromCoords(x, y) {
     if (h !== dpSelectedTime.hrs) { dpSelectedTime.hrs = h; if (navigator.vibrate) navigator.vibrate(5); }
   } else {
     let m = Math.round(angle / 6) % 60;
-    // Snap to 5 mins? Optional. Let's do free movement but tactile every 5.
     if (m !== dpSelectedTime.mins) { 
       dpSelectedTime.mins = m; 
       if (m % 5 === 0 && navigator.vibrate) navigator.vibrate(2);
@@ -962,7 +1240,6 @@ function updateDPTimeFromCoords(x, y) {
 }
 
 // ── Integration with core Modals ──
-// Override original openAdd/Edit modal to reset custom components
 const originalOpenAdd = openAddModal;
 openAddModal = function(defaultDate) {
   originalOpenAdd(defaultDate);
@@ -1001,14 +1278,16 @@ openEditModal = function(task) {
 //  TASKS PAGE & DAILY REMINDERS
 // ══════════════════════════════════════════════
 
-// ── Sub-tab Switcher logic removed ──
-
-// ── Quick Add Logic ──
 function initQuickAdd() {
   const input = document.getElementById('quick-add-input');
   const submit = document.getElementById('quick-add-submit');
 
   const add = async () => {
+    if (!currentUser) {
+      alert('Please sign in to add tasks');
+      return;
+    }
+    
     const title = input.value.trim();
     if (!title) return;
     
@@ -1019,6 +1298,7 @@ function initQuickAdd() {
         dueDate: null,
         recurrence: 'none',
         completedDates: [],
+        userId: currentUser.uid,
         createdAt: serverTimestamp()
       });
       input.value = '';
@@ -1032,23 +1312,11 @@ function initQuickAdd() {
   submit.addEventListener('click', add);
 }
 
-// ── Daily Reminders (Habits) Logic ──
-let reminders = [];
 let currentHabitIndex = 0;
 let habitResetInterval = null;
 let statsViewingDate = new Date();
 
 function initReminders() {
-  const q = query(collection(db, 'reminders'), orderBy('createdAt', 'asc'));
-  onSnapshot(q, (snapshot) => {
-    reminders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    if (currentHabitIndex >= reminders.length) currentHabitIndex = Math.max(0, reminders.length - 1);
-    renderHeroHabit();
-    renderHabitManager();
-    if(document.getElementById('habit-stats-modal').classList.contains('visible')) renderHabitStats();
-  });
-
-  // Settings Panel Overlay (Modal)
   const settingsBtn = document.getElementById('habit-settings-btn');
   const manageModal = document.getElementById('habit-manage-modal');
   const closeManageBtn = document.getElementById('close-manage-btn');
@@ -1056,7 +1324,6 @@ function initReminders() {
   const openManage = () => {
     manageModal.classList.remove('hidden');
     requestAnimationFrame(() => manageModal.classList.add('visible'));
-    // Reset to list view
     document.getElementById('habit-edit-panel').classList.add('hidden');
     document.getElementById('habit-manage-list').classList.remove('hidden');
     document.querySelector('.habit-add-bar').classList.remove('hidden');
@@ -1071,15 +1338,22 @@ function initReminders() {
   if(closeManageBtn) closeManageBtn.addEventListener('click', closeManage);
   if(manageModal) manageModal.addEventListener('click', (e) => { if(e.target === manageModal) closeManage(); });
 
-  // Add Habit
   const input = document.getElementById('add-reminder-input');
   const submit = document.getElementById('add-reminder-submit');
   const add = async () => {
+    if (!currentUser) {
+      alert('Please sign in to add habits');
+      return;
+    }
     const title = input.value.trim();
     if (!title) return;
     try {
       await addDoc(collection(db, 'reminders'), {
-        title, completedDates: [], createdAt: serverTimestamp()
+        title, 
+        completedDates: [], 
+        userId: currentUser.uid,
+        color: '#FFFFFF',
+        createdAt: serverTimestamp()
       });
       input.value = '';
       if (navigator.vibrate) navigator.vibrate(10);
@@ -1090,7 +1364,6 @@ function initReminders() {
   if(input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
   if(submit) submit.addEventListener('click', add);
 
-  // Hero Habit Navigation
   document.getElementById('habit-prev').addEventListener('click', () => {
     if(reminders.length < 2) return;
     const display = document.getElementById('hero-habit-display');
@@ -1112,26 +1385,39 @@ function initReminders() {
     setTimeout(() => display.classList.remove('fade-switch'), 300);
   });
   
-  // Hero Habit Edit Bindings
   document.querySelectorAll('.color-swatch').forEach(sw => {
     sw.addEventListener('click', (e) => {
       document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
       e.target.classList.add('selected');
+      document.getElementById('custom-color-picker').value = e.target.dataset.color;
     });
+  });
+
+  document.getElementById('custom-color-picker').addEventListener('input', (e) => {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
   });
 
   document.getElementById('edit-habit-save').addEventListener('click', async () => {
     const id = document.getElementById('edit-habit-id').value;
     const title = document.getElementById('edit-habit-input').value.trim();
     const selectedSwatch = document.querySelector('.color-swatch.selected');
-    const color = selectedSwatch ? selectedSwatch.dataset.color : '#FFFFFF';
+    const customColor = document.getElementById('custom-color-picker').value;
+    const color = selectedSwatch ? selectedSwatch.dataset.color : customColor;
     
     if(!id || !title) return;
     try {
       await updateDoc(doc(db, 'reminders', id), { title, color });
-      document.getElementById('habit-edit-panel').classList.add('hidden');
-      document.getElementById('habit-manage-list').classList.remove('hidden');
-      document.querySelector('.habit-add-bar').classList.remove('hidden');
+      // Refresh local data
+      reminders = reminders.map(r => r.id === id ? { ...r, title, color } : r);
+      renderHabitManager();
+      renderHeroHabit();
+      const editPanel = document.getElementById('habit-edit-panel');
+      editPanel.classList.remove('visible');
+      setTimeout(() => {
+        editPanel.classList.add('hidden');
+        document.getElementById('habit-manage-list').classList.remove('hidden');
+        document.querySelector('.habit-add-bar').classList.remove('hidden');
+      }, 300);
     } catch(e) { console.error("Error updating habit:", e); }
   });
 
@@ -1140,13 +1426,16 @@ function initReminders() {
     if(!id) return;
     if(confirm('Delete this habit?')) {
       await deleteDoc(doc(db, 'reminders', id));
-      document.getElementById('habit-edit-panel').classList.add('hidden');
-      document.getElementById('habit-manage-list').classList.remove('hidden');
-      document.querySelector('.habit-add-bar').classList.remove('hidden');
+      const editPanel = document.getElementById('habit-edit-panel');
+      editPanel.classList.remove('visible');
+      setTimeout(() => {
+        editPanel.classList.add('hidden');
+        document.getElementById('habit-manage-list').classList.remove('hidden');
+        document.querySelector('.habit-add-bar').classList.remove('hidden');
+      }, 300);
     }
   });
 
-  // Hero Check
   document.getElementById('hero-check-btn').addEventListener('click', () => {
     const rem = reminders[currentHabitIndex];
     if(!rem) return;
@@ -1154,12 +1443,10 @@ function initReminders() {
     toggleReminderCustom(rem, today);
   });
 
-  // Reset Timer Start
   if(habitResetInterval) clearInterval(habitResetInterval);
   habitResetInterval = setInterval(updateHeroCountdown, 1000);
   updateHeroCountdown();
 
-  // Habit Stats Modal
   const statsBtn = document.getElementById('habit-stats-btn');
   const statsModal = document.getElementById('habit-stats-modal');
   const closeStatsBtn = document.getElementById('close-stats-btn');
@@ -1205,6 +1492,8 @@ function renderHeroHabit() {
   if(empty) empty.classList.add('hidden');
 
   const rem = reminders[currentHabitIndex];
+  if (!rem) return;
+  
   const today = new Date().toISOString().split('T')[0];
   const isDoneToday = rem.completedDates && rem.completedDates.includes(today);
   const color = rem.color || '#FFFFFF';
@@ -1229,7 +1518,7 @@ function renderHeroHabit() {
   
   if (ringProgress) {
     ringProgress.style.stroke = color;
-    ringBg.style.stroke = `${color}33`; // 20% opacity for bg ring
+    ringBg.style.stroke = `${color}33`;
   }
   
   const checkIcon = document.querySelector('.hero-check-icon');
@@ -1237,13 +1526,12 @@ function renderHeroHabit() {
 
   if (isDoneToday) {
     checkBtn.classList.add('completed');
-    if(ringProgress) ringProgress.style.fill = `${color}1A`; // 10% opacity fill
+    if(ringProgress) ringProgress.style.fill = `${color}1A`;
   } else {
     checkBtn.classList.remove('completed');
     if(ringProgress) ringProgress.style.fill = 'transparent';
   }
   
-  // Hide arrows if only 1 habit
   document.getElementById('habit-prev').style.opacity = reminders.length > 1 ? '1' : '0';
   document.getElementById('habit-next').style.opacity = reminders.length > 1 ? '1' : '0';
   document.getElementById('habit-prev').style.pointerEvents = reminders.length > 1 ? 'auto' : 'none';
@@ -1259,7 +1547,6 @@ function renderHabitManager() {
     item.className = 'habit-manage-item';
     item.style.cursor = 'pointer';
     
-    // Add color dot indicator
     const dotColor = rem.color || '#FFFFFF';
     item.innerHTML = `<div style="display:flex; align-items:center; gap:8px;"><div style="width:12px; height:12px; border-radius:50%; background:${dotColor};"></div><span>${rem.title}</span></div> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5;"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
     
@@ -1272,14 +1559,18 @@ function renderHabitManager() {
 }
 
 function openHabitEdit(rem) {
+  const editPanel = document.getElementById('habit-edit-panel');
   document.getElementById('habit-manage-list').classList.add('hidden');
   document.querySelector('.habit-add-bar').classList.add('hidden');
-  document.getElementById('habit-edit-panel').classList.remove('hidden');
+  
+  editPanel.classList.remove('hidden');
+  requestAnimationFrame(() => editPanel.classList.add('visible'));
   
   document.getElementById('edit-habit-id').value = rem.id;
   document.getElementById('edit-habit-input').value = rem.title;
   
   const color = rem.color || '#FFFFFF';
+  document.getElementById('custom-color-picker').value = color;
   document.querySelectorAll('.color-swatch').forEach(sw => {
     sw.classList.toggle('selected', sw.dataset.color.toUpperCase() === color.toUpperCase());
   });
@@ -1288,7 +1579,7 @@ function openHabitEdit(rem) {
 function updateHeroCountdown() {
   const now = new Date();
   const reset = new Date();
-  reset.setHours(24, 0, 0, 0); // Midnight
+  reset.setHours(24, 0, 0, 0);
   const diff = reset - now;
   
   const h = Math.floor(diff / (1000 * 60 * 60));
@@ -1310,7 +1601,17 @@ async function toggleReminderCustom(rem, dateStr) {
     if (navigator.vibrate) navigator.vibrate([10, 30]);
   }
   
+  // Update local array immediately for instant UI feedback
+  rem.completedDates = newDates;
+  
   await updateDoc(ref, { completedDates: newDates });
+  
+  // Re-render habit stats to reflect the change
+  renderHabitStats();
+  // Also update hero habit display if this is the current habit
+  if (reminders[currentHabitIndex]?.id === rem.id) {
+    renderHeroHabit();
+  }
 }
 
 function renderHabitStats() {
@@ -1343,19 +1644,17 @@ function renderHabitStats() {
     d.className = 'dp-day';
     d.textContent = i;
     
-    // Check if this date is completed
     const loopDate = new Date(y, m, i);
-    // Format YYYY-MM-DD local time directly to match splits
     const yy = loopDate.getFullYear();
     const mm = String(loopDate.getMonth()+1).padStart(2,'0');
     const dd = String(loopDate.getDate()).padStart(2,'0');
     const dateStr = `${yy}-${mm}-${dd}`;
     
     if (rem.completedDates && rem.completedDates.includes(dateStr)) {
-      d.style.background = `${color}33`; // 20% opacity
+      d.style.background = `${color}33`;
       d.style.borderColor = color;
       d.style.color = '#fff';
-      d.style.boxShadow = `0 0 10px ${color}4d`; // 30% opacity glow
+      d.style.boxShadow = `0 0 10px ${color}4d`;
     }
     
     d.addEventListener('click', () => {
@@ -1365,16 +1664,6 @@ function renderHabitStats() {
     grid.appendChild(d);
   }
 }
-
-// ── Refactored View Switcher ──
-const originalInit = init;
-init = async function() {
-  await originalInit();
-  initQuickAdd();
-  initReminders();
-  initCountdowns();
-  renderCalendarUpcoming();
-};
 
 function renderCalendarUpcoming() {
   const list = document.getElementById('calendar-upcoming-list');
@@ -1386,10 +1675,8 @@ function renderCalendarUpcoming() {
   const nextWeek = new Date(now);
   nextWeek.setDate(now.getDate() + 7);
 
-  // Filter tasks for minor types (Homework, Event) due soon
   const upcoming = tasks.filter(t => {
     if (!t.dueDate) return false;
-    // We'll show Homework and Event types here. Tests go to major countdowns.
     if (t.type !== 'Homework' && t.type !== 'Event' && t.type !== 'Project') return false;
     
     const d = new Date(t.dueDate);
@@ -1397,7 +1684,7 @@ function renderCalendarUpcoming() {
   }).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
   if (upcoming.length === 0) {
-    list.innerHTML = `<div class="empty-state" style="padding:1rem; opacity:0.5; font-size:0.8rem; text-align:center;"><p>Nothing due this week.</p></div>`;
+    list.innerHTML = `<div class="empty-state"><p>Nothing due this week.</p></div>`;
     return;
   }
 
@@ -1431,24 +1718,12 @@ function renderCalendarUpcoming() {
   });
 }
 
-initOptionGroups();
-initDatePicker();
-renderDPDialNumbers();
-init();
-
 // ══════════════════════════════════════════════
 //  COUNTDOWN LOGIC
 // ══════════════════════════════════════════════
-let countdowns = [];
 let activeCdInterval = null;
 
 function initCountdowns() {
-  const q = query(collection(db, 'countdowns'), orderBy('targetDate', 'asc'));
-  onSnapshot(q, (snapshot) => {
-    countdowns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    renderCountdowns();
-  });
-
   const btnAdd = document.getElementById('add-countdown-btn');
   const modal = document.getElementById('countdown-modal');
   const closeBtn = document.querySelector('.close-cd-btn');
@@ -1457,6 +1732,10 @@ function initCountdowns() {
   const deleteBtn = document.getElementById('delete-cd-btn');
   
   btnAdd.addEventListener('click', () => {
+    if (!currentUser) {
+      alert('Please sign in to add countdowns');
+      return;
+    }
     document.getElementById('cd-id').value = '';
     form.reset();
     document.getElementById('cd-date').value = '';
@@ -1478,6 +1757,10 @@ function initCountdowns() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!currentUser) {
+      alert('Please sign in to add countdowns');
+      return;
+    }
     const id = document.getElementById('cd-id').value;
     const title = document.getElementById('cd-title').value;
     const targetDate = document.getElementById('cd-date').value;
@@ -1487,7 +1770,13 @@ function initCountdowns() {
     if (id) {
       await updateDoc(doc(db, 'countdowns', id), { title, targetDate, priority });
     } else {
-      await addDoc(collection(db, 'countdowns'), { title, targetDate, priority, createdAt: serverTimestamp() });
+      await addDoc(collection(db, 'countdowns'), { 
+        title, 
+        targetDate, 
+        priority, 
+        userId: currentUser.uid,
+        createdAt: serverTimestamp() 
+      });
     }
     closeCD();
   });
@@ -1528,7 +1817,6 @@ function renderCountdowns() {
   countdowns.forEach(cd => {
     const targetDateObj = new Date(cd.targetDate);
     const target = targetDateObj.getTime();
-    const now = new Date().getTime();
     
     let daysLeft = 0;
     if (!isNaN(target)) {
@@ -1548,7 +1836,6 @@ function renderCountdowns() {
     `;
     card.addEventListener('click', () => openCountdownDetail(cd));
     
-    // Add long press to edit
     attachLongPress(card, (e) => {
       e.stopPropagation();
       document.getElementById('cd-id').value = cd.id;
@@ -1611,3 +1898,250 @@ function backToGallery() {
   document.getElementById('cd-gallery-view').classList.remove('hidden');
 }
 
+// ══════════════════════════════════════════════
+//  TODAY'S WORK - SIMPLE & ROBUST
+// ══════════════════════════════════════════════
+const TODAYS_WORK_KEY = 'todaysWork'; // Using original key for compatibility
+
+function getTodaysWorkIds() {
+  try {
+    const saved = localStorage.getItem(TODAYS_WORK_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch { return []; }
+}
+
+function setTodaysWorkIds(ids) {
+  localStorage.setItem(TODAYS_WORK_KEY, JSON.stringify(ids));
+}
+
+function addToTodaysWork(taskId) {
+  const ids = getTodaysWorkIds();
+  if (!ids.includes(taskId)) {
+    ids.push(taskId);
+    setTodaysWorkIds(ids);
+  }
+}
+
+function removeFromTodaysWork(taskId) {
+  const ids = getTodaysWorkIds().filter(id => id !== taskId);
+  setTodaysWorkIds(ids);
+}
+
+function syncTodaysWorkDOM() {
+  const todaysWorkList = document.getElementById('todays-work-list');
+  if (!todaysWorkList) return;
+  
+  const savedIds = getTodaysWorkIds();
+  if (savedIds.length === 0) return;
+  
+  const now = new Date();
+  const dateStrToday = now.toISOString().slice(0, 10);
+  
+  // Check each saved ID - if task still exists, ensure it's in Today's Work
+  savedIds.forEach(id => {
+    const existsInTW = todaysWorkList.querySelector(`.task-card[data-id="${id}"]`);
+    const taskExists = tasks.some(t => t.id === id);
+    
+    // If not in TW but task exists, create a new card
+    if (!existsInTW && taskExists) {
+      const rawTask = tasks.find(t => t.id === id);
+      
+      // Calculate isInstanceFinished for Today's Work (check today's date or 'flexible')
+      const isFinished = rawTask.completedDates?.includes(dateStrToday) || 
+                         rawTask.completedDates?.includes('flexible');
+      
+      const taskForCard = { ...rawTask, isInstanceFinished: isFinished };
+      const card = createTaskCard(taskForCard);
+      if (card) {
+        todaysWorkList.appendChild(card);
+      }
+    }
+  });
+  
+  // Only clean up localStorage if tasks actually loaded successfully
+  if (tasks.length > 0) {
+    const validIds = savedIds.filter(id => tasks.some(t => t.id === id));
+    if (validIds.length !== savedIds.length) {
+      setTodaysWorkIds(validIds);
+    }
+  }
+  
+  // Update empty state
+  const emptyState = todaysWorkList.querySelector('.empty-state-mini');
+  if (emptyState) {
+    const hasTasks = todaysWorkList.querySelectorAll('.task-card').length > 0;
+    emptyState.style.display = hasTasks ? 'none' : 'block';
+  }
+}
+
+// Helper to create a task card element
+function createTaskCard(task) {
+  if (!task) return null;
+  
+  const card = document.createElement('div');
+  const completedClass = task.isInstanceFinished ? ' completed' : '';
+  card.className = `task-card type-${task.type || 'default'}${completedClass}`;
+  card.draggable = true;
+  card.dataset.id = task.id;
+  
+  const instanceKey = task.id;
+  seenTaskIds.add(instanceKey);
+  
+  const checkbox = document.createElement('div');
+  checkbox.className = `task-checkbox${task.isInstanceFinished ? ' checked' : ''}`;
+  checkbox.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    checkbox.classList.toggle('checked');
+    card.classList.toggle('completed');
+    if (navigator.vibrate) navigator.vibrate(5);
+    await toggleComplete(task.id, task.instanceDate);
+  });
+  
+  const title = document.createElement('h3');
+  title.textContent = task.title || 'Untitled Task';
+  
+  const header = document.createElement('div');
+  header.className = 'task-card-header';
+  header.appendChild(checkbox);
+  header.appendChild(title);
+  
+  if (task.type) {
+    const badge = document.createElement('span');
+    badge.className = `task-type-badge type-${task.type}`;
+    badge.textContent = task.type;
+    header.appendChild(badge);
+  }
+  
+  card.appendChild(header);
+  
+  if (task.instanceDate) {
+    const formatted = new Date(task.instanceDate).toLocaleString([], {
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'task-date';
+    dateSpan.textContent = formatted;
+    card.appendChild(dateSpan);
+  }
+  
+  if (task.description) {
+    const desc = document.createElement('p');
+    desc.className = 'task-desc';
+    desc.textContent = task.description;
+    card.appendChild(desc);
+  }
+  
+  card.addEventListener('click', () => openEditModal(task));
+  attachLongPress(card, (e) => showContextMenu(e, task));
+  
+  return card;
+}
+
+function initDragAndDrop() {
+  const todaysWorkCard = document.getElementById('todays-work-card');
+  const todaysWorkList = document.getElementById('todays-work-list');
+  const fullTasksList = document.getElementById('duelist-list');
+  const clearBtn = document.getElementById('clear-todays-work');
+  let draggedItem = null;
+
+  document.addEventListener('dragstart', (e) => {
+    if (e.target.classList.contains('task-card')) {
+      draggedItem = e.target;
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+    }
+  });
+
+  document.addEventListener('dragend', (e) => {
+    if (e.target.classList.contains('task-card')) {
+      e.target.classList.remove('dragging');
+      document.querySelectorAll('.drop-zone').forEach(zone => zone.classList.remove('drag-over'));
+      draggedItem = null;
+    }
+  });
+
+  [todaysWorkCard, fullTasksList].forEach(zone => {
+    zone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      zone.classList.add('drag-over');
+    });
+
+    zone.addEventListener('dragleave', (e) => {
+      if (!zone.contains(e.relatedTarget)) {
+        zone.classList.remove('drag-over');
+      }
+    });
+
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+
+      if (draggedItem) {
+        const taskId = draggedItem.dataset.id;
+        const isMovingToTW = zone.id === 'todays-work-card';
+        const isMovingFromTW = zone.id === 'duelist-list' && draggedItem.parentElement === todaysWorkList;
+
+        if (isMovingToTW) addToTodaysWork(taskId);
+        else if (isMovingFromTW) removeFromTodaysWork(taskId);
+
+        draggedItem.classList.add('animate-move');
+        const targetList = isMovingToTW ? todaysWorkList : fullTasksList;
+        targetList.appendChild(draggedItem);
+        syncTodaysWorkDOM();
+      }
+    });
+  });
+
+  clearBtn.addEventListener('click', () => {
+    setTodaysWorkIds([]);
+    todaysWorkList.querySelectorAll('.task-card').forEach(task => {
+      task.classList.remove('animate-move');
+      fullTasksList.appendChild(task);
+    });
+    syncTodaysWorkDOM();
+  });
+}
+
+// ══════════════════════════════════════════════
+//  INITIALIZATION
+// ══════════════════════════════════════════════
+
+// Initialize components
+initOptionGroups();
+initDatePicker();
+renderDPDialNumbers();
+initQuickAdd();
+initReminders();
+initCountdowns();
+initDragAndDrop();
+
+// Create loading screen immediately while waiting for auth
+createLoadingScreen();
+
+// Render initial empty states
+renderCalendar();
+renderHeroHabit();
+renderCountdowns();
+
+// Render tasks after all components are initialized
+renderDuelist();
+// Today's work is synced after first Firebase data arrives (see auth state listener)
+
+// Add sign out button listener
+const signoutBtn = document.getElementById('signout-btn');
+signoutBtn.style.display = 'none';
+
+signoutBtn.addEventListener('click', async () => {
+  if (confirm('Are you sure you want to sign out?')) {
+    await signOutUser();
+  }
+});
+
+// Update sign out button visibility based on auth state
+onAuthStateChanged(auth, (user) => {
+  signoutBtn.style.display = user ? 'block' : 'none';
+});
+
+console.log('Tenor app initialized. Waiting for authentication...');
