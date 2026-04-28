@@ -32,7 +32,7 @@
           <main class="tasks-content">
             <!-- All Tasks View -->
             <div id="sub-view-all" class="sub-view content-card">
-              <h2 class="card-header">Target Assignments</h2>
+              <h2 class="card-header">Tasks</h2>
               <div class="quick-add-bar">
                 <input type="text" id="quick-add-input" placeholder="Quick add task..." autocomplete="off">
                 <button id="quick-add-submit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -45,7 +45,7 @@
             <!-- Daily Habits Hero View -->
             <div id="sub-view-reminders" class="sub-view content-card hero-habit-card">
               <div class="hero-habit-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
-                <h2 class="card-header" style="margin-bottom:0;">Daily Focus</h2>
+                <h2 class="card-header" style="margin-bottom:0;">Daily Checkin</h2>
                 <div class="habit-actions" style="display:flex; gap:0.5rem;">
                   <button id="habit-stats-btn" class="icon-btn" aria-label="Stats & History" title="View History" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
@@ -113,8 +113,19 @@
                 <span>Fri</span>
                 <span>Sat</span>
               </div>
-              <div id="calendar-grid" class="calendar-grid-full">
-                <!-- Grid injected by JS -->
+              <div class="calendar-main-layout">
+                <div id="calendar-grid" class="calendar-grid-full">
+                  <!-- Grid injected by JS -->
+                </div>
+                <aside class="calendar-sidebar">
+                  <div class="sidebar-header">
+                    <h3>Coming Up</h3>
+                    <span class="sidebar-subtitle">HW & Projects</span>
+                  </div>
+                  <div id="calendar-upcoming-list" class="upcoming-list">
+                    <!-- Upcoming minor events injected by JS -->
+                  </div>
+                </aside>
               </div>
             </div>
           </main>
@@ -179,8 +190,8 @@
               <div class="zone-dial" id="zone-dial">
                 <svg class="zone-dial-svg" viewBox="0 0 280 280">
                   <circle class="zone-dial-track" cx="140" cy="140" r="130" />
-                  <circle class="zone-dial-progress" id="setup-dial-progress" cx="140" cy="140" r="130" />
                 </svg>
+                <div class="conic-ring" id="setup-conic-ring"></div>
                 <div class="zone-dial-rotator" id="zone-dial-rotator">
                   <div class="zone-dial-handle"></div>
                 </div>
@@ -190,7 +201,10 @@
                 </div>
               </div>
 
-              <button class="btn-primary block-btn" id="zone-start-btn">Start</button>
+              <button class="zone-start-button" id="zone-start-btn">
+                <span>START</span>
+                <div class="btn-glow"></div>
+              </button>
             </div>
           </div>
 
@@ -200,8 +214,8 @@
               <div class="zone-ring" id="zone-ring">
                 <svg class="zone-ring-svg" viewBox="0 0 200 200">
                   <circle class="zone-ring-bg" cx="100" cy="100" r="90" />
-                  <circle class="zone-ring-progress" id="zone-ring-progress" cx="100" cy="100" r="90" />
                 </svg>
+                <div class="conic-ring" id="active-conic-ring" style="--p: 0%;"></div>
                 <div class="zone-time-display">
                   <span class="zone-time" id="zone-time">00:00</span>
                   <span class="zone-label" id="zone-label">remaining</span>
@@ -287,56 +301,65 @@
       <form id="task-form">
         <input type="hidden" id="task-id">
 
+        <!-- Title Section (Hero) -->
         <div class="form-group">
-          <label for="task-title">Title</label>
-          <input type="text" id="task-title" required autocomplete="off" placeholder="e.g. Math Test Ch. 5">
+          <input type="text" id="task-title" required autocomplete="off" placeholder="What needs to be done?">
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label>Type</label>
-            <div class="custom-select" id="custom-select-type">
-              <div class="select-trigger"><span>Homework</span> <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div class="select-options hidden">
-                <div data-value="Homework" class="option selected">Homework</div>
-                <div data-value="Test" class="option">Test</div>
-                <div data-value="Event" class="option">Event</div>
-              </div>
-              <input type="hidden" id="task-type" value="Homework">
-            </div>
+        <!-- Time Section -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Due Date & Time
           </div>
-
-          <div class="form-group">
-            <label>Due Date & Time</label>
-            <div class="custom-date-trigger" id="custom-date-trigger">
-              <span id="date-display">Select date & time</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M16 2v4M8 2v4"/></svg>
-            </div>
-            <input type="hidden" id="task-date">
+          <div class="custom-date-trigger" id="custom-date-trigger">
+            <span id="date-display">Select date & time</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M16 2v4M8 2v4"/></svg>
           </div>
+          <input type="hidden" id="task-date">
+        </div>
 
-          <div class="form-group">
-            <label>Repeat</label>
-            <div class="custom-select" id="custom-select-repeat">
-              <div class="select-trigger"><span>No Repeat</span> <svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-              <div class="select-options hidden">
-                <div data-value="none" class="option selected">No Repeat</div>
-                <div data-value="daily" class="option">Daily</div>
-                <div data-value="weekly" class="option">Weekly</div>
+        <!-- Classification Section -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Classification <span class="optional-tag">(optional)</span>
+          </div>
+          <div class="form-row-refined">
+            <div class="form-group" style="margin-bottom:0;">
+              <label>Type</label>
+              <div class="option-group" id="group-task-type">
+                <button type="button" class="option-btn" data-value="">None</button>
+                <button type="button" class="option-btn" data-value="Homework">HW</button>
+                <button type="button" class="option-btn" data-value="Test">Test</button>
+                <button type="button" class="option-btn" data-value="Event">Event</button>
+                <input type="hidden" id="task-type" value="">
               </div>
-              <input type="hidden" id="task-repeat" value="none">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label>Repeat</label>
+              <div class="option-group" id="group-task-repeat">
+                <button type="button" class="option-btn" data-value="none">None</button>
+                <button type="button" class="option-btn" data-value="daily">Daily</button>
+                <button type="button" class="option-btn" data-value="weekly">Weekly</button>
+                <input type="hidden" id="task-repeat" value="none">
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="task-desc">Notes</label>
-          <textarea id="task-desc" rows="3" placeholder="Optional notes..."></textarea>
+        <!-- Notes Section -->
+        <div class="form-section" style="padding-bottom: 0.5rem;">
+          <div class="form-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Notes
+          </div>
+          <textarea id="task-desc" rows="1" placeholder="Add some details..." style="background:transparent; border:none; padding:0; width:100%; min-height:40px; font-size:0.9rem; color:var(--text-secondary);"></textarea>
         </div>
 
         <div class="form-actions">
           <button type="button" id="delete-task-btn" class="btn-danger hidden">Delete</button>
-          <button type="submit" class="btn-primary">Save</button>
+          <button type="submit" class="btn-primary">Save Task</button>
         </div>
       </form>
     </div>
@@ -411,6 +434,15 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M16 2v4M8 2v4"/></svg>
           </div>
           <input type="hidden" id="cd-date">
+        </div>
+
+        <div class="form-group">
+          <label>Classification</label>
+          <div class="option-group" id="group-cd-priority">
+            <button type="button" class="option-btn active" data-value="normal">Normal</button>
+            <button type="button" class="option-btn" data-value="major">Major</button>
+            <input type="hidden" id="cd-priority" value="normal">
+          </div>
         </div>
 
         <div class="form-actions">

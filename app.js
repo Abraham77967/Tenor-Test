@@ -144,6 +144,7 @@ async function init() {
     }));
     renderCalendar();
     renderDuelist();
+    renderCalendarUpcoming();
   });
 }
 
@@ -244,6 +245,8 @@ function renderCalendar(animate = true) {
   }
 }
 
+let seenTaskIds = new Set();
+
 function renderDuelist() {
   duelistList.innerHTML = '';
   const now = new Date();
@@ -257,9 +260,8 @@ function renderDuelist() {
     
     // No-date tasks: Always show in duelist
     if (!tStart) {
-      if (!t.completedDates?.includes('flexible')) { // using 'flexible' as a placeholder completion key
-        instances.push({ ...t, instanceDate: null, isInstanceFinished: false });
-      }
+      const finished = t.completedDates?.includes('flexible');
+      instances.push({ ...t, instanceDate: null, isInstanceFinished: !!finished });
       return;
     }
 
@@ -314,28 +316,39 @@ function renderDuelist() {
     card.className = `task-card type-${t.type}`;
     if (t.isInstanceFinished) card.classList.add('completed');
 
-    card.classList.add('animate-stagger');
-    card.style.animationDelay = `${index * 60}ms`;
+    const instanceKey = `${t.id}-${t.instanceDate}`;
+    if (!seenTaskIds.has(instanceKey)) {
+      card.classList.add('animate-stagger');
+      card.style.animationDelay = `${index * 50}ms`;
+      seenTaskIds.add(instanceKey);
+    }
 
     const checkbox = document.createElement('div');
     checkbox.className = `task-checkbox${t.isInstanceFinished ? ' checked' : ''}`;
     checkbox.addEventListener('click', async (e) => {
       e.stopPropagation();
+      // Optimistic UI for instant smoothness
+      checkbox.classList.toggle('checked');
+      card.classList.toggle('completed');
+      if (navigator.vibrate) navigator.vibrate(5);
+      
       await toggleComplete(t.id, t.instanceDate);
     });
 
     const title = document.createElement('h3');
     title.textContent = t.title;
 
-    const badge = document.createElement('span');
-    badge.className = `task-type-badge type-${t.type}`;
-    badge.textContent = t.type;
-
     const header = document.createElement('div');
     header.className = 'task-card-header';
     header.appendChild(checkbox);
     header.appendChild(title);
-    header.appendChild(badge);
+
+    if (t.type) {
+      const badge = document.createElement('span');
+      badge.className = `task-type-badge type-${t.type}`;
+      badge.textContent = t.type;
+      header.appendChild(badge);
+    }
 
     card.appendChild(header);
 
@@ -363,11 +376,12 @@ async function toggleComplete(id, dateStr) {
   const task = tasks.find(t => t.id === id);
   if (!task) return;
   
+  const key = dateStr || 'flexible';
   let currentCompleted = task.completedDates || [];
-  if (currentCompleted.includes(dateStr)) {
-    currentCompleted = currentCompleted.filter(d => d !== dateStr);
+  if (currentCompleted.includes(key)) {
+    currentCompleted = currentCompleted.filter(d => d !== key);
   } else {
-    currentCompleted.push(dateStr);
+    currentCompleted.push(key);
   }
 
   try {
@@ -491,17 +505,40 @@ let zoneTotalSeconds = 0;
 let zoneRemainingSeconds = 0;
 let zoneIsPaused = false;
 
+function safeAnimateUpdate(el, newValue) {
+  if (!el || el.textContent === newValue) return;
+  
+  el.dataset.targetValue = newValue;
+  
+  if (el.classList.contains('digit-out')) return;
+
+  el.classList.remove('digit-in');
+  el.classList.add('digit-out');
+  
+  setTimeout(() => {
+    el.textContent = el.dataset.targetValue;
+    el.classList.remove('digit-out');
+    el.classList.add('digit-in');
+  }, 250);
+}
+
 let setupMinutes = 45;
 let isDraggingDial = false;
 
-function setSetupDialValue(mins) {
+function setSetupDialValue(mins, forceDisplay = false) {
   setupMinutes = mins;
-  if(zoneDialValue) zoneDialValue.textContent = mins;
+  
+  // Only update display text when NOT dragging (on start/stop) or if explicitly forced
+  if (forceDisplay || !isDraggingDial) {
+    if(zoneDialValue) safeAnimateUpdate(zoneDialValue, mins.toString());
+  }
+
   const deg = (mins / 120) * 360;
   if(zoneDialRotator) zoneDialRotator.style.transform = `rotate(${deg}deg)`;
-  if (setupDialProgress) {
-    const offset = SETUP_RING_CIRC - (mins / 120) * SETUP_RING_CIRC;
-    setupDialProgress.style.strokeDashoffset = offset;
+  
+  const setupConic = document.getElementById('setup-conic-ring');
+  if (setupConic) {
+    setupConic.style.setProperty('--p', `${(mins / 120) * 100}%`);
   }
 }
 
@@ -516,7 +553,10 @@ function updateSetupDial(clientX, clientY) {
   let mins = Math.round(deg / 3);
   mins = Math.max(5, Math.round(mins / 5) * 5);
   if (mins > 120) mins = 120;
-  if (mins !== setupMinutes) setSetupDialValue(mins);
+  if (mins !== setupMinutes) {
+    // Only update rotation/conic during drag
+    setSetupDialValue(mins);
+  }
 }
 
 if (zoneDial) {
@@ -533,6 +573,8 @@ if (zoneDial) {
   zoneDial.addEventListener('pointerup', (e) => { 
     isDraggingDial = false; 
     zoneDial.releasePointerCapture(e.pointerId); 
+    // Force show the final value even if it's not a 10
+    setSetupDialValue(setupMinutes, true);
     if (navigator.vibrate) navigator.vibrate(10); 
   });
   zoneDial.addEventListener('pointercancel', (e) => { 
@@ -576,8 +618,23 @@ function pauseZone() { zoneIsPaused = true; zoneLabelEl.textContent = 'paused'; 
 function resumeZone() { zoneIsPaused = false; zoneLabelEl.textContent = 'remaining'; updatePauseIcon(); }
 function stopZone() { clearInterval(zoneInterval); zoneInterval = null; zoneIsPaused = false; const container = document.getElementById('zone-container'); container.classList.remove('zone-mode-active'); container.classList.add('zone-mode-setup'); if (navigator.vibrate) navigator.vibrate(20); }
 function onZoneComplete() { const mins = Math.round(zoneTotalSeconds / 60); zoneCompleteMsg.textContent = `${mins} minute session completed.`; zoneCompleteOverlay.classList.remove('hidden'); if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]); stopZone(); }
-function updateZoneDisplay() { const h = Math.floor(zoneRemainingSeconds / 3600); const m = Math.floor((zoneRemainingSeconds % 3600) / 60); const s = zoneRemainingSeconds % 60; if (h > 0) zoneTimeEl.textContent = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; else zoneTimeEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
-function updateRingProgress() { const fraction = zoneRemainingSeconds / zoneTotalSeconds; const offset = RING_CIRCUMFERENCE * (1 - fraction); zoneRingProgress.style.strokeDashoffset = offset; }
+function updateZoneDisplay() { 
+  const h = Math.floor(zoneRemainingSeconds / 3600); 
+  const m = Math.floor((zoneRemainingSeconds % 3600) / 60); 
+  const s = zoneRemainingSeconds % 60; 
+  let timeStr = "";
+  if (h > 0) timeStr = `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; 
+  else timeStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; 
+  
+  if (zoneTimeEl) safeAnimateUpdate(zoneTimeEl, timeStr);
+}
+function updateRingProgress() { 
+  const fraction = zoneRemainingSeconds / zoneTotalSeconds; 
+  const activeConic = document.getElementById('active-conic-ring');
+  if (activeConic) {
+    activeConic.style.setProperty('--p', `${fraction * 100}%`);
+  }
+}
 function updatePauseIcon() { const iconPause = zonePauseBtn.querySelector('.icon-pause'); const iconPlay = zonePauseBtn.querySelector('.icon-play'); if (zoneIsPaused) { iconPause.classList.add('hidden'); iconPlay.classList.remove('hidden'); } else { iconPause.classList.remove('hidden'); iconPlay.classList.add('hidden'); } }
 
 // ── Touch Utilities ──
@@ -650,56 +707,45 @@ function dismissContextMenu() {
 //  CUSTOM UI COMPONENTS (SELECT & DATE PICKER)
 // ══════════════════════════════════════════════
 
-// ── Custom Select Logic ──
-function initCustomSelects() {
-  const selects = document.querySelectorAll('.custom-select');
+// ── Option Group Logic (Chips) ──
+function initOptionGroups() {
+  const groups = document.querySelectorAll('.option-group');
   
-  selects.forEach(select => {
-    const trigger = select.querySelector('.select-trigger');
-    const options = select.querySelector('.select-options');
-    const hiddenInput = select.querySelector('input[type="hidden"]');
-    const displaySpan = trigger.querySelector('span');
+  groups.forEach(group => {
+    const btns = group.querySelectorAll('.option-btn');
+    const hiddenInput = group.querySelector('input[type="hidden"]');
 
-    trigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeAllCustomSelects(select);
-      select.classList.toggle('active');
-      options.classList.toggle('hidden');
-    });
-
-    options.querySelectorAll('.option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const val = opt.dataset.value;
-        const text = opt.textContent;
+    btns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        console.log(`[OptionGroups] Clicked: ${btn.dataset.value}`);
+        const val = btn.dataset.value;
         
         hiddenInput.value = val;
-        displaySpan.textContent = text;
         
-        options.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
-        opt.classList.add('selected');
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
         
-        select.classList.remove('active');
-        options.classList.add('hidden');
+        if (navigator.vibrate) navigator.vibrate(5);
       });
     });
   });
-
-  document.addEventListener('click', () => closeAllCustomSelects());
 }
 
-function closeAllCustomSelects(except = null) {
-  document.querySelectorAll('.custom-select').forEach(s => {
-    if (s !== except) {
-      s.classList.remove('active');
-      s.querySelector('.select-options').classList.add('hidden');
+function updateOptionGroupUI(inputId, value) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const group = input.closest('.option-group');
+  if (!group) return;
+  
+  const btns = group.querySelectorAll('.option-btn');
+  btns.forEach(btn => {
+    if (btn.dataset.value === value) {
+      btn.classList.add('active');
+      input.value = value;
+    } else {
+      btn.classList.remove('active');
     }
   });
-}
-
-function updateCustomSelectUI(id, value) {
-  const select = document.getElementById(id).closest('.custom-select');
-  const opt = select.querySelector(`.option[data-value="${value}"]`);
-  if (opt) opt.click();
 }
 
 // ── Custom Date Picker Logic ──
@@ -920,8 +966,8 @@ function updateDPTimeFromCoords(x, y) {
 const originalOpenAdd = openAddModal;
 openAddModal = function(defaultDate) {
   originalOpenAdd(defaultDate);
-  updateCustomSelectUI('task-type', 'Homework');
-  updateCustomSelectUI('task-repeat', 'none');
+  updateOptionGroupUI('task-type', '');
+  updateOptionGroupUI('task-repeat', 'none');
   const hInput = document.getElementById('task-date');
   const dSpan = document.getElementById('date-display');
   if (defaultDate) {
@@ -937,8 +983,8 @@ openAddModal = function(defaultDate) {
 const originalOpenEdit = openEditModal;
 openEditModal = function(task) {
   originalOpenEdit(task);
-  updateCustomSelectUI('task-type', task.type);
-  updateCustomSelectUI('task-repeat', task.recurrence || 'none');
+  updateOptionGroupUI('task-type', task.type);
+  updateOptionGroupUI('task-repeat', task.recurrence || 'none');
   const hInput = document.getElementById('task-date');
   const dSpan = document.getElementById('date-display');
   if (task.dueDate) {
@@ -970,9 +1016,9 @@ function initQuickAdd() {
       await addDoc(collection(db, 'tasks'), {
         title,
         type: 'Homework',
-        dueDate: null, // Quick add = no due date
+        dueDate: null,
         recurrence: 'none',
-        completed: false,
+        completedDates: [],
         createdAt: serverTimestamp()
       });
       input.value = '';
@@ -1327,9 +1373,65 @@ init = async function() {
   initQuickAdd();
   initReminders();
   initCountdowns();
+  renderCalendarUpcoming();
 };
 
-initCustomSelects();
+function renderCalendarUpcoming() {
+  const list = document.getElementById('calendar-upcoming-list');
+  if (!list) return;
+  list.innerHTML = '';
+  
+  const now = new Date();
+  now.setHours(0,0,0,0);
+  const nextWeek = new Date(now);
+  nextWeek.setDate(now.getDate() + 7);
+
+  // Filter tasks for minor types (Homework, Event) due soon
+  const upcoming = tasks.filter(t => {
+    if (!t.dueDate) return false;
+    // We'll show Homework and Event types here. Tests go to major countdowns.
+    if (t.type !== 'Homework' && t.type !== 'Event' && t.type !== 'Project') return false;
+    
+    const d = new Date(t.dueDate);
+    return d >= now && d <= nextWeek;
+  }).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  if (upcoming.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:1rem; opacity:0.5; font-size:0.8rem; text-align:center;"><p>Nothing due this week.</p></div>`;
+    return;
+  }
+
+  upcoming.slice(0, 8).forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'upcoming-mini-card';
+    
+    const due = new Date(t.dueDate);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    let dueStr = "";
+    if (diffDays === 0) dueStr = "Today";
+    else if (diffDays === 1) dueStr = "Tomorrow";
+    else dueStr = `${diffDays}d`;
+
+    card.innerHTML = `
+      <div class="mini-card-header">
+        <span class="mini-card-title">${t.title}</span>
+        <span class="mini-card-due">${dueStr}</span>
+      </div>
+      <div class="mini-card-meta">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        ${due.toLocaleDateString([], { month: 'short', day: 'numeric' })} • ${due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </div>
+    `;
+    card.addEventListener('click', () => openEditModal(t));
+    list.appendChild(card);
+  });
+}
+
+initOptionGroups();
 initDatePicker();
 renderDPDialNumbers();
 init();
@@ -1360,7 +1462,8 @@ function initCountdowns() {
     document.getElementById('cd-date').value = '';
     document.getElementById('cd-date-display').textContent = 'Select date & time';
     document.getElementById('cd-modal-title').textContent = 'Add Countdown';
-    deleteBtn.classList.add('hidden');
+    document.getElementById('cd-priority').value = 'normal';
+    updateOptionGroupUI('cd-priority', 'normal');
     modal.classList.remove('hidden');
     requestAnimationFrame(() => modal.classList.add('visible'));
   });
@@ -1379,10 +1482,12 @@ function initCountdowns() {
     const title = document.getElementById('cd-title').value;
     const targetDate = document.getElementById('cd-date').value;
     
+    const priority = document.getElementById('cd-priority').value;
+    
     if (id) {
-      await updateDoc(doc(db, 'countdowns', id), { title, targetDate });
+      await updateDoc(doc(db, 'countdowns', id), { title, targetDate, priority });
     } else {
-      await addDoc(collection(db, 'countdowns'), { title, targetDate, createdAt: serverTimestamp() });
+      await addDoc(collection(db, 'countdowns'), { title, targetDate, priority, createdAt: serverTimestamp() });
     }
     closeCD();
   });
@@ -1407,18 +1512,33 @@ function renderCountdowns() {
   const now = new Date().getTime();
 
   if (countdowns.length === 0) {
+    list.classList.remove('compact-layout');
     list.innerHTML = `<div class="empty-state"><p>No target events yet.</p><small>Add a date to look forward to!</small></div>`;
     return;
   }
 
+  const count = countdowns.length;
+  let tier = 'hero';
+  if (count > 20) tier = 'mini';
+  else if (count > 10) tier = 'compact';
+  else if (count > 4) tier = 'standard';
+  
+  list.className = `countdown-grid tier-${tier}`;
+
   countdowns.forEach(cd => {
-    const target = new Date(cd.targetDate).getTime();
-    let diff = target - now;
-    if (diff < 0) diff = 0;
-    const daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const targetDateObj = new Date(cd.targetDate);
+    const target = targetDateObj.getTime();
+    const now = new Date().getTime();
+    
+    let daysLeft = 0;
+    if (!isNaN(target)) {
+      let diff = target - now;
+      if (diff < 0) diff = 0;
+      daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
+    }
 
     const card = document.createElement('div');
-    card.className = 'countdown-card';
+    card.className = `countdown-card${cd.priority === 'major' ? ' major' : ''}`;
     card.innerHTML = `
       <div class="cd-title">${cd.title}</div>
       <div class="cd-stats">
@@ -1441,6 +1561,8 @@ function renderCountdowns() {
         document.getElementById('cd-date-display').textContent = 'Select date & time';
       }
       document.getElementById('cd-modal-title').textContent = 'Edit Countdown';
+      document.getElementById('cd-priority').value = cd.priority || 'normal';
+      updateOptionGroupUI('cd-priority', cd.priority || 'normal');
       document.getElementById('delete-cd-btn').classList.remove('hidden');
       const modal = document.getElementById('countdown-modal');
       modal.classList.remove('hidden');

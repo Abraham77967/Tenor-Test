@@ -72,6 +72,7 @@
 html, body {
   height: 100%;
   overflow: hidden;
+  overflow-x: hidden;
   background-color: var(--bg-page);
   color: var(--text-primary);
   font-family: var(--font-main);
@@ -263,7 +264,7 @@ button, input, select, textarea {
 .app-container {
   max-width: 1360px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0.5rem 2rem 2rem;
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -298,6 +299,75 @@ button, input, select, textarea {
   font-size: 0.95rem;
   letter-spacing: 1px;
   text-transform: uppercase;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.3s var(--ease-fluid);
+}
+
+.zone-start-button {
+  position: relative;
+  padding: 0 2.6rem;
+  height: 58px;
+  background: linear-gradient(135deg, rgba(99, 160, 255, 0.18) 0%, rgba(37, 99, 235, 0.28) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(147, 197, 253, 0.3);
+  border-radius: 100px;
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  overflow: visible; /* Allow glow to show outside */
+  transition: transform 0.45s cubic-bezier(0.23, 1, 0.32, 1),
+              border-color 0.45s ease,
+              box-shadow 0.45s ease;
+  margin-top: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  animation: btnBreathe 6s ease-in-out infinite;
+}
+
+@keyframes btnBreathe {
+  0%, 100% {
+    border-color: rgba(147, 197, 253, 0.15);
+    box-shadow: 0 0 3px 1px rgba(99, 160, 255, 0.1);
+  }
+  50% {
+    border-color: rgba(147, 197, 253, 0.6);
+    box-shadow: 0 0 6px 1px rgba(99, 160, 255, 0.3);
+  }
+}
+
+.zone-start-button span {
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 0 12px rgba(147, 197, 253, 0.6);
+}
+
+.zone-start-button .btn-glow {
+  display: none;
+}
+
+.zone-start-button:hover {
+  transform: translateY(-3px) scale(1.04);
+  border-color: rgba(147, 197, 253, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.12) inset,
+    0 0 48px 16px rgba(59, 130, 246, 0.45),
+    0 8px 40px rgba(59, 130, 246, 0.3);
+  animation-play-state: paused;
+}
+
+.zone-start-button:active {
+  transform: translateY(0) scale(0.97);
+}
+
+
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -347,7 +417,7 @@ button, input, select, textarea {
 
 .logo {
   font-family: var(--font-serif);
-  font-size: 2.5rem;
+  font-size: 1.8rem;
   background: linear-gradient(to right, #fff, var(--text-tertiary));
   -webkit-background-clip: text;
   background-clip: text;
@@ -368,10 +438,7 @@ button, input, select, textarea {
   flex: 2;
 }
 
-.duelist-view {
-  flex: 1;
-  max-width: 400px;
-}
+/* Old duelist view styles removed to prevent conflicts */
 
 .calendar-header {
   display: flex;
@@ -408,10 +475,108 @@ button, input, select, textarea {
   width: 18px; height: 18px;
 }
 
-.calendar-grid {
+.calendar-main-layout {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.calendar-grid-full {
+  flex: 3;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 16px;
+  gap: 12px;
+  min-height: 500px;
+}
+
+.calendar-sidebar {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 320px;
+  backdrop-filter: blur(8px);
+}
+
+.sidebar-header h3 {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: #fff;
+}
+
+.sidebar-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  max-height: 60vh;
+  padding-right: 0.5rem;
+}
+
+.upcoming-mini-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  transition: all var(--duration-normal) var(--ease-fluid);
+  cursor: pointer;
+}
+
+.upcoming-mini-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mini-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.mini-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+
+.mini-card-due {
+  font-size: 0.75rem;
+  color: var(--accent-light);
+  font-weight: 700;
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.mini-card-meta {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mini-card-meta svg {
+  opacity: 0.6;
 }
 
 .day-header {
@@ -509,6 +674,10 @@ button, input, select, textarea {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  overflow-x: hidden; /* Explicitly hide horizontal scroll */
+  flex: 1;
+  width: 100%;
+  padding-right: 4px; /* Space for scrollbar */
 }
 
 .task-card {
@@ -520,20 +689,12 @@ button, input, select, textarea {
   transition: all var(--duration-normal) var(--ease-fluid);
   position: relative;
   overflow: hidden;
+  flex-shrink: 0; /* Prevent stacking/shrinking when list is long */
 }
 
-.task-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
-  background: var(--text-tertiary);
-  border-radius: 4px 0 0 4px;
-}
+/* Removed left color bar */
 
-.task-card.type-Homework::before { background: var(--color-homework); box-shadow: 0 0 8px var(--color-homework); }
-.task-card.type-Test::before { background: var(--color-test); box-shadow: 0 0 8px var(--color-test); }
-.task-card.type-Event::before { background: var(--color-event); box-shadow: 0 0 8px var(--color-event); }
+/* Removed type-specific left color bars */
 
 .task-card:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -691,6 +852,7 @@ button, input, select, textarea {
   opacity: 1;
   transform: scale(1) translateY(0);
   pointer-events: auto;
+  padding-top: 5rem; /* Push ring + controls down */
 }
 
 .zone-setup-inner {
@@ -938,14 +1100,20 @@ button, input, select, textarea {
   pointer-events: auto;
 }
 
+#task-title::placeholder {
+  color: var(--text-tertiary);
+  opacity: 0.6;
+  font-weight: 400;
+}
+
 .modal-content {
-  background: #121218;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+  background: #0A0A0F;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
   border-radius: var(--radius-xl);
-  width: 92%;
-  max-width: 540px;
-  padding: 2.5rem;
+  width: 94%;
+  max-width: 480px;
+  padding: 1.5rem;
   position: relative;
   transform: translateY(40px) scale(0.95);
   transition: transform var(--duration-slow) var(--ease-elastic);
@@ -1008,10 +1176,78 @@ input:focus, select:focus, textarea:focus {
 
 select option { background: #121218; color: #fff; }
 
-.form-actions {
-  display: flex; gap: 1rem; margin-top: 2rem;
+
+
+.form-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  transition: all var(--duration-normal) var(--ease-fluid);
 }
-.form-actions .btn-primary { flex: 1; }
+
+.form-section:focus-within {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+textarea:focus {
+  outline: none;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  resize: none;
+}
+
+.form-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-section-title svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+
+#task-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  border-radius: 0;
+  padding: 4px 0;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+#task-title:focus {
+  border-color: var(--accent);
+  box-shadow: none;
+  background: transparent;
+}
+
+.form-row-refined {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 500px) {
+  .form-row-refined {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* Zone Completion Overlay */
 .zone-complete-content {
@@ -1175,12 +1411,26 @@ select option { background: #121218; color: #fff; }
 }
 
 .tasks-content {
-  margin-top: 1.5rem;
-  flex: 1;
+  margin-top: -1rem;
   display: flex;
   flex-direction: row;
-  gap: 2rem;
+  gap: 3rem;
   overflow: hidden;
+  overflow-x: hidden;
+  height: auto;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.tasks-content .content-card {
+  flex: 1;
+  width: 500px; /* Base width */
+  max-width: 600px;
+  height: min(620px, 68vh) !important; /* Strictly enforced unified height with viewport safety */
+  padding: 3rem; /* Matching the daily focus card's spacious padding */
+  display: flex;
+  flex-direction: column;
 }
 
 .sub-view {
@@ -1202,7 +1452,7 @@ select option { background: #121218; color: #fff; }
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow-y: auto;
+  overflow: hidden; /* Prevent both X and Y overflow here (use list scroll) */
   height: 100%;
 }
 
@@ -1486,9 +1736,10 @@ select option { background: #121218; color: #fff; }
   border: 1px solid var(--border-light);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg), 0 0 40px rgba(0, 0, 0, 0.2);
-  padding: 16px 24px;
-  max-width: 1100px;
+  padding: 24px;
+  max-width: 1200px;
   width: 100%;
+  overflow: hidden; /* Fix chopped edges */
 }
 
 .calendar-hero-header {
@@ -1558,69 +1809,166 @@ select option { background: #121218; color: #fff; }
 /* ===========================
    COUNTDOWN GALLERY & DETAIL
    =========================== */
-.countdown-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1rem;
-  padding-bottom: 80px;
+#view-countdown {
+  overflow-y: hidden !important;
 }
 
-.countdown-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
+.countdown-content {
+  height: calc(100dvh - 220px);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+}
+
+.countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--min-w), 1fr));
+  grid-auto-rows: 1fr;
+  height: 100%;
+  gap: var(--grid-gap);
+  margin-top: 1rem;
+  padding-bottom: 80px; /* Safety gap from tab bar */
+  align-content: stretch;
+}
+
+/* Tier definitions */
+.countdown-grid.tier-hero { --min-w: 300px; --grid-gap: 2rem; }
+.countdown-grid.tier-standard { --min-w: 220px; --grid-gap: 1.5rem; }
+.countdown-grid.tier-compact { --min-w: 160px; --grid-gap: 1rem; }
+.countdown-grid.tier-mini { --min-w: 110px; --grid-gap: 0.5rem; }
+
+.countdown-card {
+  --p: 1.5rem;
+  --title-fs: 1.2rem;
+  --val-fs: 3.5rem;
+  --gap: 1rem;
+  --radius: var(--radius-xl);
+
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: var(--p);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--gap);
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-fluid);
   position: relative;
   overflow: hidden;
+  text-align: center;
 }
 
-.countdown-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 100%;
-  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
-  z-index: 0; pointer-events: none;
+.tier-hero .countdown-card { --p: 2rem; --title-fs: 1.5rem; --val-fs: 4.5rem; }
+.tier-standard .countdown-card { --p: 1.25rem; --title-fs: 1.1rem; --val-fs: 3.2rem; --gap: 0.5rem; }
+.tier-compact .countdown-card { --p: 0.75rem; --title-fs: 0.95rem; --val-fs: 2.2rem; --gap: 0.4rem; --radius: var(--radius-lg); }
+.tier-mini .countdown-card { 
+  --p: 0.5rem 1rem; 
+  --title-fs: 0.85rem; 
+  --val-fs: 1.3rem; 
+  --gap: 1rem; 
+  --radius: var(--radius-md); 
+  flex-direction: row; 
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tier-mini .cd-stats {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.countdown-card.major {
+  grid-column: span 2;
+  background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent), rgba(255, 255, 255, 0.03);
+  border-color: rgba(99, 102, 241, 0.3);
+  padding-top: 2.5rem;
+  padding-bottom: 3rem;
+}
+
+.tier-hero .countdown-card.major { }
+.tier-standard .countdown-card.major { }
+.tier-compact .countdown-card.major { }
+.tier-mini .countdown-card.major { 
+  grid-column: span 1; /* Don't span in mini mode to keep grid tight */
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 .countdown-card:hover {
-  background: var(--bg-card-hover);
-  transform: translateY(-4px);
-  border-color: rgba(255,255,255,0.2);
-  box-shadow: var(--shadow-md), 0 0 20px rgba(255,255,255,0.05);
+  transform: translateY(-8px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.countdown-card.major:hover {
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(99, 102, 241, 0.2);
 }
 
 .cd-title {
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-size: var(--title-fs);
+  font-weight: 500;
+  letter-spacing: 0.5px;
   color: #fff;
   z-index: 1;
+  transition: font-size 0.3s;
+  line-height: 1.2;
 }
+
+.tier-hero .countdown-card.major .cd-title { font-size: 2rem; }
+.tier-standard .countdown-card.major .cd-title { font-size: 1.6rem; }
+.tier-compact .countdown-card.major .cd-title { font-size: 1.2rem; }
 
 .cd-stats {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   z-index: 1;
 }
 
 .cd-days-val {
-  font-size: 2.5rem;
-  font-weight: 300;
+  font-size: var(--val-fs);
+  font-weight: 200;
+  line-height: 0.9;
+  background: linear-gradient(to bottom, #fff, var(--accent-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   font-family: var(--font-serif);
-  color: var(--accent-light);
+  transition: font-size 0.3s;
 }
 
+.tier-hero .countdown-card.major .cd-days-val { font-size: 5rem; }
+.tier-standard .countdown-card.major .cd-days-val { font-size: 4rem; }
+.tier-compact .countdown-card.major .cd-days-val { font-size: 3rem; }
+
 .cd-days-lbl {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  font-weight: 600;
+}
+
+.tier-standard .cd-days-lbl { font-size: 0.65rem; letter-spacing: 1.5px; }
+.tier-compact .cd-days-lbl { font-size: 0.55rem; letter-spacing: 1px; }
+.tier-mini .cd-days-lbl { font-size: 0.45rem; letter-spacing: 0.5px; }
+
+.countdown-card::after {
+  content: '';
+  position: absolute;
+  top: -20%; right: -20%;
+  width: 250px; height: 250px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  filter: blur(50px);
+  z-index: 0;
+  pointer-events: none;
 }
 
 .countdown-full-display {
@@ -1628,8 +1976,35 @@ select option { background: #121218; color: #fff; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 0;
-  height: 50vh;
+  padding: 4rem 0;
+  min-height: 60vh;
+  position: relative;
+}
+
+.cd-timer-blocks {
+  display: flex;
+  gap: 3rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.cd-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140px;
+}
+
+.cd-num {
+  font-size: 7rem;
+  font-weight: 200;
+  font-family: var(--font-serif);
+  line-height: 1;
+  background: linear-gradient(to bottom, #fff, rgba(255,255,255,0.6));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* ===========================
@@ -1889,6 +2264,104 @@ select option { background: #121218; color: #fff; }
 }
 
 /* ===========================
+   OPTION GROUPS (Chips)
+   =========================== */
+.optional-tag {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  text-transform: none;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.option-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.option-group {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.option-btn {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+  white-space: nowrap;
+}
+
+.option-btn svg {
+  width: 14px;
+  height: 14px;
+  color: inherit;
+  pointer-events: none;
+}
+
+.option-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+.option-btn.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.option-btn.active svg {
+  color: #fff;
+  transform: scale(1);
+}
+
+label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.form-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.form-actions .btn-primary {
+  flex: 1;
+}
+
+/* ===========================
    CUSTOM DATE TRIGGER BUTTON
    =========================== */
 .custom-date-trigger {
@@ -1989,3 +2462,318 @@ select option { background: #121218; color: #fff; }
   100% { border-radius: 54% 46% 43% 57% / 48% 56% 44% 52%; }
 }
 
+@media (max-width: 1100px) {
+  .calendar-main-layout {
+    flex-direction: column;
+  }
+  .calendar-sidebar {
+    border-left: none;
+    border-top: 1px solid var(--border-light);
+    padding-left: 0;
+    padding-top: 2rem;
+    max-width: none;
+  }
+  .calendar-grid-full {
+    min-height: auto;
+  }
+}
+
+
+/* ===========================
+   CONIC GRADIENT RINGS
+   =========================== */
+.conic-ring {
+  position: absolute;
+  inset: 0; 
+  border-radius: 50%;
+  --p: 0%; 
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    var(--accent) 12deg, 
+    #fff var(--p), 
+    rgba(255, 255, 255, 0.8) calc(var(--p) + 0.5%),
+    transparent calc(var(--p) + 1%)
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+#setup-conic-ring {
+  /* Box is 280x280. Center is 140. Track is r=130, stroke=12 => Inner=124, Outer=136 */
+  -webkit-mask: radial-gradient(circle at center, transparent 124px, black 124.5px, black 136px, transparent 136.5px);
+  mask: radial-gradient(circle at center, transparent 124px, black 124.5px, black 136px, transparent 136.5px);
+}
+
+#active-conic-ring {
+  /* .zone-ring=340px, viewBox=200. Scale=1.7. r=90→153px, stroke=4→6.8px. Inner=149.5, Outer=156.5 */
+  -webkit-mask: radial-gradient(circle at center, transparent 149px, black 149.5px, black 157px, transparent 157.5px);
+  mask: radial-gradient(circle at center, transparent 149px, black 149.5px, black 157px, transparent 157.5px);
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.4));
+}
+
+#active-conic-ring {
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.4));
+}
+
+/* ===========================
+   ROLLING NUMBERS
+   =========================== */
+.rolling-number {
+  display: inline-flex;
+  height: 4.5rem; 
+  line-height: 4.5rem;
+  overflow: hidden;
+  font-family: var(--font-main);
+  font-weight: 300;
+  color: #fff;
+}
+
+.digit-col {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.digit-col span {
+  height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0.6em;
+}
+
+#zone-dial-value {
+  font-size: 4.5rem;
+  font-weight: 300;
+}
+
+
+/* ===========================
+   MECHANICAL ODOMETER EFFECT
+   =========================== */
+.odometer {
+  display: inline-flex;
+  overflow: hidden;
+  line-height: 1;
+  height: 1em; /* Fixed height relative to font-size */
+  vertical-align: top;
+}
+
+.odometer-digit {
+  position: relative;
+  width: 0.65em;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+.odometer-num {
+  height: 1em; /* Exactly matching container height */
+  flex: 0 0 1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Specific styling for the Zone display */
+.zone-dial-value {
+  font-family: var(--font-main);
+  font-size: 5.5rem; /* Slightly larger */
+  font-weight: 200;
+  color: #fff;
+}
+
+.zone-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4.5rem;
+  font-weight: 200;
+  color: #fff;
+  gap: 0.05em;
+}
+
+.zt-colon {
+  margin-top: -0.1em;
+  opacity: 0.4;
+  width: 0.2em;
+  text-align: center;
+}
+
+/* Ensure digits have consistent width in timer */
+.zone-time .odometer-digit {
+  width: 0.6em;
+}
+
+/* Cylindrical shadow effect */
+.odometer {
+  position: relative;
+}
+
+.odometer::before, .odometer::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 25%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.odometer::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(10, 10, 15, 0.8), transparent);
+}
+
+.odometer::after {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(10, 10, 15, 0.8), transparent);
+}
+
+/* ===========================
+   SCROLLING TICKER NUMBERS
+   =========================== */
+.ticker-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.ticker-digit {
+  height: 1.1em; /* Matches font height */
+  overflow: hidden;
+  position: relative;
+  width: 0.6em; /* Adjust based on font */
+  display: flex;
+  justify-content: center;
+}
+
+.digit-strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+.digit-strip span {
+  height: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticker-separator {
+  padding: 0 0.1em;
+}
+
+/* ===========================
+   PREMIUM NUMBER TRANSITIONS
+   =========================== */
+.zone-dial-value, .zone-time {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.digit-out {
+  opacity: 0;
+  filter: blur(8px);
+  transform: scale(0.9);
+}
+
+.digit-in {
+  animation: digitFadeIn 0.35s cubic-bezier(0.0, 0, 0.2, 1) forwards;
+}
+
+@keyframes digitFadeIn {
+  0% { 
+    opacity: 0; 
+    filter: blur(8px);
+    transform: scale(1.1);
+  }
+  100% { 
+    opacity: 1; 
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+/* Ensure no layout shift during animation */
+.zone-dial-center, .zone-time-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===========================
+   HYPER-SMOOTH NUMBER CROSSFADE
+   =========================== */
+.digit-exit {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  animation: digitExit 0.6s var(--ease-fluid) forwards;
+}
+
+@keyframes digitExit {
+  from { 
+    opacity: 1; 
+    filter: blur(0) brightness(1); 
+    transform: scale(1); 
+  }
+  to { 
+    opacity: 0; 
+    filter: blur(15px) brightness(1.5); 
+    transform: scale(1.1); 
+  }
+}
+
+.digit-enter {
+  animation: digitEnter 0.6s var(--ease-fluid) forwards;
+}
+
+@keyframes digitEnter {
+  from { 
+    opacity: 0; 
+    filter: blur(15px) brightness(1.5); 
+    transform: scale(0.9); 
+  }
+  to { 
+    opacity: 1; 
+    filter: blur(0) brightness(1); 
+    transform: scale(1); 
+  }
+}
+
+/* ===========================
+   ADVANCED NUMBER CROSSFADE
+   =========================== */
+.digit-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.digit-old {
+  position: absolute;
+  animation: digitFadeOut 0.4s var(--ease-fluid) forwards;
+  pointer-events: none;
+}
+
+.digit-new {
+  animation: digitFadeIn 0.4s var(--ease-fluid) forwards;
+}
+
+@keyframes digitFadeOut {
+  0% { opacity: 1; filter: blur(0); transform: scale(1); }
+  100% { opacity: 0; filter: blur(12px); transform: scale(1.1); }
+}
+
+@keyframes digitFadeIn {
+  0% { opacity: 0; filter: blur(12px); transform: scale(0.9); }
+  100% { opacity: 1; filter: blur(0); transform: scale(1); }
+}
